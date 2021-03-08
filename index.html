@@ -1,0 +1,548 @@
+<!doctype html>
+<html>
+  <head>
+    <title>PXL Editor</title>
+    <link rel="icon" href="/511/257/341/313/381/313/341/257/511.svg"/>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+      }
+      a {
+        text-decoration: none;
+      }
+      a:hover {
+        opacity: 0.75;
+      }
+      a:active {
+        opacity: 0.5;
+      }
+      a img {
+        height: 32px;
+      }
+      .mr-1 {
+        margin-right: 1em;
+      }
+      #container {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        background-color: rgb(7, 7, 7);
+      }
+      #cvs {
+        cursor: pointer;
+      }
+      #menu {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+      }
+      #c {
+        position: fixed;
+        bottom: 8px;
+        right: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <canvas id="cvs"></canvas>
+    </div>
+    <div id="menu">
+      <a id="fsc" href="#" title="Fullscreen">
+        <img src="/511/257/365/325/257/325/365/257/511.svg"/>
+      </a>
+      <a id="mns" href="#" title="Zoom Out (Ctrl + -)">
+        <img src="/255/129/129/129/189/129/129/129/255.svg"/>
+      </a>
+      <a id="pls" class="mr-1" href="#" title="Zoom In (Ctrl + +)">
+        <img src="/511/257/273/273/381/273/273/257/511.svg"/>
+      </a>
+      <a id="prv" href="#" title="Undo (Ctrl + Z)">
+        <img src="/127/65/81/89/93/89/81/65/127.svg"/>
+      </a>
+      <a id="nxt" class="mr-1" href="#" title="Redo (Ctrl + Shift + Z)">
+        <img src="/127/65/69/77/93/77/69/65/127.svg"/>
+      </a>
+      <a id="inv" href="#" title="Invert (Ctrl + I)">
+        <img src="/511/257/369/333/333/317/317/257/511.svg"/>
+      </a>
+      <a id="mrh" href="#" title="Mirror H (Ctrl + .)">
+        <img src="/511/257/273/273/341/273/273/257/511.svg"/>
+      </a>
+      <a id="mrv" href="#" title="Mirror V (Ctrl + ,)">
+        <img src="/511/257/273/257/381/257/273/257/511.svg"/>
+      </a>
+      <a id="clr" class="mr-1" href="#" title="Clear (Ctrl + Q)">
+        <img src="/511/257/365/313/273/313/365/257/511.svg"/>
+      </a>
+      <a id="txt" href="#" title="TXT">
+        <img src="/32767/16385/23901/18761/18569/18761/18761/16385/32767.svg"/>
+      </a>
+      <a id="svg" href="#" title="SVG">
+        <img src="/262143/131073/193629/136261/186077/168849/192797/131073/262143.svg"/>
+      </a>
+      <a id="png" href="#" title="PNG (Ctrl + Enter)">
+        <img src="/131071/65537/96861/68309/93149/84805/96837/65537/131071.svg"/>
+      </a>
+    </div>
+    <div id="c">
+      <a href="/34359738367/34091302913/34220502845/34120098669/34154178413/34120360813/34220502845/17179869185/25565293965/24542670301/24542670253/25616412045/24491556237/17179869185/34359738367.png" title="Copyright">
+        <img src="/255/129/153/165/133/165/153/129/255.svg"/>
+      </a>
+    </div>
+    <script>
+      'use strict';
+
+      class World {
+        constructor(bits) {
+          this.bits = bits;
+          this.rows = new BigUint64Array(this.bits);
+        }
+
+        get(x, y) {
+          return (this.rows[y] & (1n<<BigInt(x))) !== 0n;
+        }
+
+        set(x, y, val) {
+          if (val) {
+            this.rows[y] |= (1n<<BigInt(x));
+          } else {
+            this.rows[y] &= ~(1n<<BigInt(x));
+          }
+          return val;
+        }
+
+        toggle(x, y) {
+          return this.set(x, y, !this.get(x, y));
+        }
+
+        invert() {
+          this.rows = this.rows.map((val) => (~val) & ((1n<<BigInt(this.bits)) - 1n));
+        }
+
+        mirror() {
+          this.rows = this.rows.map((val) => {
+            let res = 0n;
+
+            for (let i = 0; i < this.bits; i++) {
+              res <<= 1n;
+              res |= val & 1n;
+              val >>= 1n;
+            }
+            return res;
+          });
+        }
+
+        reverse() {
+          this.rows.reverse();
+        }
+
+        reset(rows = []) {
+          for (let i = 0; i < this.rows.length; i++) {
+            this.rows[i] = (rows[i] === undefined) ? 0n : rows[i];
+          };
+        }
+
+        resetPath(path = '') {
+          const rows = path.slice(1).split('/').map((s) => {
+            try {
+              return BigInt(s);
+            } catch {
+              return 0n;
+            }
+          });
+
+          this.reset(rows);
+        }
+
+        forEach(fn) {
+          for (let y = 0; y < this.rows.length; y++) {
+            for (let x = 0; x < this.bits; x++) {
+              fn(x, y, this.get(x, y));
+            }
+          }
+        }
+
+        get path() {
+          return `/${this.rows.join('/')}`;
+        }
+
+        compactRows() {
+          const rows = [...this.rows];
+          // Remove leading empty rows.
+          let index = rows.findIndex((val) => val > 0);
+          if (index < 0) return [];
+          rows.splice(0, index);
+          // Remove trailing empty rows.
+          rows.reverse();
+          rows.splice(0, rows.findIndex((val) => val > 0));
+          rows.reverse();
+          // Remove leading empty cols.
+          const min = rows
+            .filter((val) => val > 0)
+            .map((val) => val & ((~val) + 1n))
+            .reduce((memo, val) => (memo < val) ? memo : val);
+          return (min === 0) ? rows : rows.map((val) => val / min);
+        }
+
+        get compactPath() {
+          const rows = this.compactRows();
+          return (rows.length === 0) ? null : `/${rows.join('/')}`;
+        }
+      };
+
+      class Canvas {
+        static get zoomStep() {
+          return 1.5;
+        }
+
+        constructor(el, bits, width, height, colors) {
+          this.el = el;
+          this.bits = bits;
+          this.colors = colors;
+          this.ctx = this.el.getContext('2d');
+          this.resize(width, height);
+        }
+
+        resize(width, height) {
+          const size = Math.max(width, height);
+          this.scale = Math.ceil(size / this.bits);
+          this.el.width = this.bits * this.scale;
+          this.el.height = this.bits * this.scale;
+        }
+
+        zoomIn() {
+          this.resize(
+            this.el.width * Canvas.zoomStep,
+            this.el.height * Canvas.zoomStep,
+          );
+        }
+
+        zoomOut() {
+          this.resize(
+            this.el.width / Canvas.zoomStep,
+            this.el.height / Canvas.zoomStep,
+          );
+        }
+
+        _draw(x, y, fill) {
+          this.ctx.fillStyle = fill;
+          this.ctx.strokeStyle = this.colors.gr;
+          this.ctx.beginPath();
+          this.ctx.rect(x*this.scale, y*this.scale, this.scale, this.scale);
+          this.ctx.fill();
+          this.ctx.stroke();
+          this.ctx.closePath();
+        }
+
+        draw(x, y, val) {
+          this._draw(x, y, val ? this.colors.fg : this.colors.bg);
+        }
+
+        hover(x, y) {
+          this._draw(x, y, this.colors.hv);
+        }
+
+        coords(x, y) {
+          return [
+            Math.trunc((x - this.el.offsetLeft) / this.scale),
+            Math.trunc((y - this.el.offsetTop) / this.scale),
+          ];
+        }
+      };
+
+      const defaultRows = [
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        92360817901568n,
+        61574382747648n,
+        136341089550336n,
+        61574383271936n,
+        92362961715200n,
+        0n,
+        138502828064768n,
+        120616485519360n,
+        120616486043648n,
+        67839927386112n,
+        120891314667520n,
+      ];
+
+      const bits = 64;
+
+      const fsc = document.getElementById('fsc');
+      const mns = document.getElementById('mns');
+      const pls = document.getElementById('pls');
+      const prv = document.getElementById('prv');
+      const nxt = document.getElementById('nxt');
+      const inv = document.getElementById('inv');
+      const mrh = document.getElementById('mrh');
+      const mrv = document.getElementById('mrv');
+      const clr = document.getElementById('clr');
+      const txt = document.getElementById('txt');
+      const svg = document.getElementById('svg');
+      const png = document.getElementById('png');
+      const cvs = document.getElementById('cvs');
+
+      const world = new World(bits);
+
+      const canvas = new Canvas(cvs, bits, window.innerWidth, window.innerHeight, {
+        bg: 'rgb(0, 0, 0)',
+        fg: 'rgb(232, 52, 143)',
+        gr: 'rgb(7, 7, 7)',
+        hv: 'rgba(232, 52, 143, 0.5)',
+      });
+
+      const flush = () => world.forEach((x, y, val) => canvas.draw(x, y, val));
+      const reset = (x, y) => canvas.draw(x, y, world.get(x, y));
+      const hover = (x, y) => canvas.hover(x, y);
+      const draw = (x, y) => { canvas.draw(x, y, world.toggle(x, y)); pushState(); };
+      const pushState = () => window.history.pushState(null, document.title, `/#${world.path}`);
+
+      const popState = () => {
+        const hash = window.location.hash.slice(1);
+        (hash === '') ? world.reset(defaultRows) : world.resetPath(hash);
+        flush();
+      };
+
+      popState();
+
+      let x = 0;
+      let y = 0;
+      let down = false;
+
+      cvs.addEventListener('mouseup', () => down = false);
+      cvs.addEventListener('mouseout', () => down = false);
+
+      cvs.addEventListener('mousedown', (e) => {
+        // Ignore right click.
+        if (e.button === 2) return;
+        e.preventDefault();
+        down = true;
+        draw(...canvas.coords(e.pageX, e.pageY));
+      });
+
+      cvs.addEventListener('mousemove', (e) => {
+        const [curX, curY] = canvas.coords(e.pageX, e.pageY);
+        // Do nothing, if we didn't leave the cell.
+        if (x === curX && y === curY) return;
+        // Reset previous cell.
+        reset(x, y);
+        x = curX;
+        y = curY;
+        (down || e.shiftKey) ? draw(x, y) : hover(x, y);
+      });
+
+      fsc.addEventListener('click', (e) => {
+        e.preventDefault();
+
+        if (document.fullscreenElement === null) {
+          document.body.requestFullscreen();
+        } else {
+          document.exitFullscreen();
+        }
+      });
+
+      mns.addEventListener('click', (e) => {
+        e.preventDefault();
+        canvas.zoomOut();
+        flush();
+      });
+
+      pls.addEventListener('click', (e) => {
+        e.preventDefault();
+        canvas.zoomIn();
+        flush();
+      });
+
+      prv.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.history.go(-1);
+      });
+
+      nxt.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.history.go(1);
+      });
+
+      inv.addEventListener('click', (e) => {
+        e.preventDefault();
+        world.invert();
+        flush();
+        pushState();
+      });
+
+      mrh.addEventListener('click', (e) => {
+        e.preventDefault();
+        world.mirror();
+        flush();
+        pushState();
+      });
+
+      mrv.addEventListener('click', (e) => {
+        e.preventDefault();
+        world.reverse();
+        flush();
+        pushState();
+      });
+
+      clr.addEventListener('click', (e) => {
+        e.preventDefault();
+        world.reset();
+        flush();
+        pushState();
+      });
+
+      txt.addEventListener('click', (e) => {
+        e.preventDefault();
+        const path = world.compactPath;
+        if (path !== null) window.location.href = `${path}.txt`;
+      });
+
+      svg.addEventListener('click', (e) => {
+        e.preventDefault();
+        const path = world.compactPath;
+        if (path !== null) window.location.href = `${path}.svg`;
+      });
+
+      png.addEventListener('click', (e) => {
+        e.preventDefault();
+        const path = world.compactPath;
+        if (path !== null) window.location.href = `${path}.png`;
+      });
+
+      window.addEventListener('popstate', (e) => {
+        e.preventDefault();
+        popState();
+      });
+
+      window.addEventListener('resize', () => {
+        canvas.resize(window.innerWidth, window.innerHeight);
+        flush();
+      });
+
+      window.addEventListener('keydown', (e) => {
+        switch (e.key) {
+          case 'ArrowDown':
+            e.preventDefault();
+            if (y + 1 >= bits) return;
+            reset(x, y);
+            y++;
+            e.shiftKey ? draw(x, y) : hover(x, y);
+            return;
+          case 'ArrowUp':
+            e.preventDefault();
+            if (y - 1 < 0) return;
+            reset(x, y);
+            y--;
+            e.shiftKey ? draw(x, y) : hover(x, y);
+            return;
+          case 'ArrowRight':
+            e.preventDefault();
+            if (x + 1 >= bits) return;
+            reset(x, y);
+            x++;
+            e.shiftKey ? draw(x, y) : hover(x, y);
+            return;
+          case 'ArrowLeft':
+            e.preventDefault();
+            if (x - 1 < 0) return;
+            reset(x, y);
+            x--;
+            e.shiftKey ? draw(x, y) : hover(x, y);
+            return;
+          case 'Shift':
+            e.preventDefault();
+            draw(x, y);
+            return;
+        }
+
+        if (!e.ctrlKey) return;
+
+        switch (e.key) {
+          case '-':
+            e.preventDefault();
+            canvas.zoomOut();
+            flush();
+            return;
+          case '+':
+            e.preventDefault();
+            canvas.zoomIn();
+            flush();
+            return;
+          case '.':
+            e.preventDefault();
+            world.mirror();
+            flush();
+            pushState();
+            return;
+          case ',':
+            e.preventDefault();
+            world.reverse();
+            flush();
+            pushState();
+            return;
+          case '0':
+            e.preventDefault();
+            canvas.resize(window.innerWidth, window.innerHeight);
+            flush();
+            return;
+          case 'i':
+            e.preventDefault();
+            world.invert();
+            flush();
+            pushState();
+            return;
+          case 'q':
+            e.preventDefault();
+            world.reset();
+            flush();
+            pushState();
+            return;
+          case 'Enter':
+            e.preventDefault();
+            window.location.href = world.compactPath;
+            return;
+          case 'z':
+            e.preventDefault();
+            window.history.go(-1);
+            return;
+          case 'Z':
+            e.preventDefault();
+            window.history.go(1);
+            return;
+        }
+      });
+    </script>
+  </body>
+</html>

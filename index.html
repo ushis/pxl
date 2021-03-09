@@ -23,7 +23,7 @@
       .mr-1 {
         margin-right: 1em;
       }
-      #container {
+      .container {
         position: fixed;
         top: 0;
         right: 0;
@@ -35,7 +35,7 @@
         overflow: hidden;
         background-color: rgb(7, 7, 7);
       }
-      #cvs {
+      .cvs {
         cursor: pointer;
       }
       #menu {
@@ -48,11 +48,14 @@
         bottom: 8px;
         right: 16px;
       }
+      [hidden] {
+        display: none;
+      }
     </style>
   </head>
   <body>
-    <div id="container">
-      <canvas id="cvs"></canvas>
+    <div class="container">
+      <canvas id="cvs" class="cvs"></canvas>
     </div>
     <div id="menu">
       <a id="fsc" href="#" title="Fullscreen">
@@ -70,8 +73,14 @@
       <a id="nxt" class="mr-1" href="#" title="Redo (Ctrl + Shift + Z)">
         <img src="/127/65/69/77/93/77/69/65/127.svg"/>
       </a>
+      <a id="fgr" href="#" title="Choose Foreground Color">
+        <img src="/511/257/285/381/349/329/377/257/511.svg"/>
+      </a>
+      <a id="bgr" class="mr-1" href="#" title="Choose Background Color">
+        <img src="/511/257/285/373/381/377/377/257/511.svg"/>
+      </a>
       <a id="inv" href="#" title="Invert (Ctrl + I)">
-        <img src="/511/257/369/333/333/317/317/257/511.svg"/>
+        <img src="/2047/1025/1505/1445/1325/1445/1505/1025/2047.svg"/>
       </a>
       <a id="mrh" href="#" title="Mirror H (Ctrl + .)">
         <img src="/511/257/273/273/341/273/273/257/511.svg"/>
@@ -96,6 +105,9 @@
       <a href="/34359738367/34091302913/34220502845/34120098669/34154178413/34120360813/34220502845/17179869185/25565293965/24542670301/24542670253/25616412045/24491556237/17179869185/34359738367.png" title="Copyright">
         <img src="/255/129/153/165/133/165/153/129/255.svg"/>
       </a>
+    </div>
+    <div id="pck" class="container" hidden>
+      <canvas class="cvs"></canvas>
     </div>
     <script>
       'use strict';
@@ -233,6 +245,12 @@
           this.ctx.closePath();
         }
 
+        rgba(x, y) {
+          const realX = (x * this.scale) + (this.scale / 2);
+          const realY = (y * this.scale) + (this.scale / 2);
+          return this.ctx.getImageData(realX, realY, 1, 1).data;
+        }
+
         coords(x, y) {
           return [
             Math.trunc((x - this.el.offsetLeft) / this.scale),
@@ -240,6 +258,28 @@
           ];
         }
       };
+
+      class Color {
+        constructor(r, g, b, a) {
+          this.r = r;
+          this.g = g;
+          this.b = b;
+          this.a = a;
+        }
+
+        get css() {
+          return `rgba(${this.r}, ${this.g}, ${this.b}, ${this.a / 255})`;
+        }
+
+        get pxl() {
+          let pxl = 0n;
+          pxl |= BigInt(this.r) << 24n;
+          pxl |= BigInt(this.g) << 16n;
+          pxl |= BigInt(this.b) << 8n;
+          pxl |= BigInt(this.a) << 0n;
+          return pxl;
+        }
+      }
 
       class Cursor {
         constructor(world, canvas, colors) {
@@ -253,7 +293,7 @@
           this._blink(this.x, this.y);
         }
 
-        mvTo(x, y, draw = false) {
+        _mvTo(x, y, draw = false) {
           // Check bounds.
           if (x < 0 || this.world.bits <= x || y < 0 || this.world.bits <= y) return false;
           // Do nothing if the cursor didn't move.
@@ -272,20 +312,25 @@
           return true;
         }
 
+        mvTo(pageX, pageY, draw = false) {
+          const [x, y] = this.canvas.coords(pageX, pageY);
+          this._mvTo(x, y, draw);
+        }
+
         mvUp(draw = false) {
-          return this.mvTo(this.x, this.y - 1, draw);
+          return this._mvTo(this.x, this.y - 1, draw);
         }
 
         mvDown(draw = false) {
-          return this.mvTo(this.x, this.y + 1, draw);
+          return this._mvTo(this.x, this.y + 1, draw);
         }
 
         mvLeft(draw = false) {
-          return this.mvTo(this.x - 1, this.y, draw);
+          return this._mvTo(this.x - 1, this.y, draw);
         }
 
         mvRight(draw = false) {
-          return this.mvTo(this.x + 1, this.y, draw);
+          return this._mvTo(this.x + 1, this.y, draw);
         }
 
         up() {
@@ -301,7 +346,7 @@
           this._toggle(this.x, this.y);
         }
 
-        flush() {
+        async flush() {
           for (let x = 0; x < this.world.bits; x++) {
             for (let y = 0; y < this.world.bits; y++) {
               this._reset(x, y);
@@ -309,23 +354,96 @@
           }
         }
 
+        set fg(fg) {
+          this.colors.fg = fg;
+        }
+
+        get fg() {
+          return this.colors.fg;
+        }
+
+        set bg(bg) {
+          this.colors.bg = bg;
+        }
+
+        get bg() {
+          return this.colors.bg;
+        }
+
         _reset(x, y) {
-          this.canvas.draw(x, y, this.world.get(x, y) ? this.colors.fg : this.colors.bg);
+          this.canvas.draw(x, y, this.world.get(x, y) ? this.colors.fg.css : this.colors.bg.css);
         }
 
         _toggle(x, y) {
-          this.canvas.draw(x, y, this.world.toggle(x, y) ? this.colors.fg : this.colors.bg);
+          this.canvas.draw(x, y, this.world.toggle(x, y) ? this.colors.fg.css : this.colors.bg.css);
         }
 
         _blink(x, y) {
           let blink = false;
-          this.canvas.draw(x, y, this.colors.bl);
+          this.canvas.draw(x, y, this.colors.bl.css);
           window.clearInterval(this.blinker);
 
           this.blinker = window.setInterval(() => {
             blink ? this.canvas.draw(x, y, this.colors.bl) : this._reset(x, y);
             blink = !blink;
           }, 500);
+        }
+      };
+
+      class ColorPicker {
+        constructor(canvas, lightness = 0.5) {
+          this.canvas = canvas;
+          this.lightness = lightness;
+          this._flush();
+        }
+
+        color(x, y) {
+          return new Color(...this.canvas.rgba(x, y));
+        }
+
+        coords(pageX, pageY) {
+          return this.canvas.coords(pageX, pageY);
+        }
+
+        async _flush() {
+          for (let x = 0; x < this.canvas.bits; x++) {
+            for (let y = 0; y < this.canvas.bits; y++) {
+              const [h, s, l] = this._hsl(x, y);
+              this.canvas.draw(x, y, `hsl(${h}, ${s*100}%, ${l*100}%)`);
+            }
+          }
+        }
+
+        _hsl(x, y) {
+          const [r, phi] = this._polarCoords(x, y);
+          const h = (phi * 180) / Math.PI;
+          const s = r / this._radius(this.canvas.bits, this.canvas.bits);
+          const l = this.lightness;
+          return [h, s, l];
+        }
+
+        _polarCoords(x, y) {
+          return [this._radius(x, y), this._angle(x, y)];
+        }
+
+        _radius(x, y) {
+          const [pX, pY] = this._translate(x, y);
+          return Math.sqrt(pX**2 + pY**2)
+        }
+
+        _angle(x, y) {
+          const [pX, pY] = this._translate(x, y);
+          const atan = Math.atan(pY / pX);
+          if (pX >= 0 && pY >= 0) return atan;
+          if (pX < 0) return atan + Math.PI;
+          return atan + (2 * Math.PI);
+        }
+
+        _translate(x, y) {
+          return [
+            x - (this.canvas.bits / 2),
+            y - (this.canvas.bits / 2),
+          ];
         }
       };
 
@@ -371,15 +489,17 @@
 
       const bits = 64;
 
-      const bg = 'rgb(0, 0, 0)';
-      const fg = 'rgb(232, 52, 143)';
-      const bl = 'rgb(116, 26, 72)';
+      const bg = new Color(0, 0, 0, 255);
+      const fg = new Color(232, 52, 143, 255);
+      const bl = new Color(116, 26, 72, 255);
 
       const fsc = document.getElementById('fsc');
       const mns = document.getElementById('mns');
       const pls = document.getElementById('pls');
       const prv = document.getElementById('prv');
       const nxt = document.getElementById('nxt');
+      const fgr = document.getElementById('fgr');
+      const bgr = document.getElementById('bgr');
       const inv = document.getElementById('inv');
       const mrh = document.getElementById('mrh');
       const mrv = document.getElementById('mrv');
@@ -388,10 +508,13 @@
       const svg = document.getElementById('svg');
       const png = document.getElementById('png');
       const cvs = document.getElementById('cvs');
+      const pck = document.getElementById('pck');
+      const pckCvs = pck.querySelector('.cvs');
 
       const world = new World(bits);
       const canvas = new Canvas(cvs, bits, window.innerWidth, window.innerHeight);
       const cursor = new Cursor(world, canvas, {bg, fg, bl});
+      const picker = new ColorPicker(new Canvas(pckCvs, bits, window.innerWidth, window.innerHeight));
 
       const pushState = () => {
         window.history.pushState(null, document.title, `/#${world.path}`);
@@ -417,9 +540,20 @@
       });
 
       cvs.addEventListener('mousemove', (e) => {
-        const [x, y] = canvas.coords(e.pageX, e.pageY);
-        const update = cursor.mvTo(x, y, e.shiftKey);
+        const update = cursor.mvTo(e.pageX, e.pageY, e.shiftKey);
         if (update) pushState();
+      });
+
+      pckCvs.addEventListener('click', (e) => {
+        const [x, y] = picker.coords(e.pageX, e.pageY);
+        pck.hidden = true;
+
+        if (pck.dataset.g === 'fg') {
+          cursor.fg = picker.color(x, y);
+        } else {
+          cursor.bg = picker.color(x, y);
+        }
+        cursor.flush();
       });
 
       fsc.addEventListener('click', (e) => {
@@ -452,6 +586,18 @@
       nxt.addEventListener('click', (e) => {
         e.preventDefault();
         window.history.go(1);
+      });
+
+      fgr.addEventListener('click', (e) => {
+        e.preventDefault();
+        pck.hidden = false;
+        pck.dataset.g = 'fg';
+      });
+
+      bgr.addEventListener('click', (e) => {
+        e.preventDefault();
+        pck.hidden = false;
+        pck.dataset.g = 'bg';
       });
 
       inv.addEventListener('click', (e) => {
@@ -491,13 +637,15 @@
       svg.addEventListener('click', (e) => {
         e.preventDefault();
         const path = world.compactPath;
-        if (path !== null) window.location.href = `${path}.svg`;
+        if (path === null) return;
+        window.location.href = `${path}.svg?fg=${cursor.fg.pxl}&bg=${cursor.bg.pxl}`;
       });
 
       png.addEventListener('click', (e) => {
         e.preventDefault();
         const path = world.compactPath;
-        if (path !== null) window.location.href = `${path}.png`;
+        if (path === null) return;
+        window.location.href = `${path}.png?fg=${cursor.fg.pxl}&bg=${cursor.bg.pxl}`;
       });
 
       window.addEventListener('popstate', (e) => {

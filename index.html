@@ -165,7 +165,7 @@
         forEach(fn) {
           for (let y = 0; y < this.rows.length; y++) {
             for (let x = 0; x < this.bits; x++) {
-              fn(x, y, this.get(x, y));
+              fn(this.get(x, y), x, y);
             }
           }
         }
@@ -203,10 +203,9 @@
           return 1.5;
         }
 
-        constructor(el, bits, width, height, colors) {
+        constructor(el, bits, width, height) {
           this.el = el;
           this.bits = bits;
-          this.colors = colors;
           this.ctx = this.el.getContext('2d');
           this.resize(width, height);
         }
@@ -232,9 +231,9 @@
           );
         }
 
-        _draw(x, y, fill) {
+        draw(x, y, fill, stroke = 'rgb(7, 7, 7)') {
           this.ctx.fillStyle = fill;
-          this.ctx.strokeStyle = this.colors.gr;
+          this.ctx.strokeStyle = stroke;
           this.ctx.beginPath();
           this.ctx.rect(x*this.scale, y*this.scale, this.scale, this.scale);
           this.ctx.fill();
@@ -242,19 +241,97 @@
           this.ctx.closePath();
         }
 
-        draw(x, y, val) {
-          this._draw(x, y, val ? this.colors.fg : this.colors.bg);
-        }
-
-        hover(x, y) {
-          this._draw(x, y, this.colors.hv);
-        }
-
         coords(x, y) {
           return [
             Math.trunc((x - this.el.offsetLeft) / this.scale),
             Math.trunc((y - this.el.offsetTop) / this.scale),
           ];
+        }
+      };
+
+      class Cursor {
+        constructor(world, canvas, colors) {
+          this.world = world;
+          this.canvas = canvas;
+          this.colors = colors;
+          this.x = Math.trunc(bits / 2);
+          this.y = Math.trunc(bits / 2);
+          this.isDown = false;
+          this.blinker = null;
+          this._blink(this.x, this.y);
+        }
+
+        mvTo(x, y, draw = false) {
+          // Check bounds.
+          if (x < 0 || this.world.bits <= x || y < 0 || this.world.bits <= y) return false;
+          // Do nothing if the cursor didn't move.
+          if (x === this.x && y === this.y) return false;
+          // Reset prev cell.
+          this._reset(this.x, this.y);
+          // Move to new location.
+          this.x = x;
+          this.y = y;
+          // Reset blinker.
+          this._blink(this.x, this.y)
+          // Are we done?
+          if (!draw && !this.isDown) return false;
+          // Draw if cursor is down.
+          this._toggle(this.x, this.y);
+          return true;
+        }
+
+        mvUp(draw = false) {
+          return this.mvTo(this.x, this.y - 1, draw);
+        }
+
+        mvDown(draw = false) {
+          return this.mvTo(this.x, this.y + 1, draw);
+        }
+
+        mvLeft(draw = false) {
+          return this.mvTo(this.x - 1, this.y, draw);
+        }
+
+        mvRight(draw = false) {
+          return this.mvTo(this.x + 1, this.y, draw);
+        }
+
+        up() {
+          this.isDown = false;
+        }
+
+        down() {
+          this._toggle(this.x, this.y);
+          this.isDown = true;
+        }
+
+        draw() {
+          this._toggle(this.x, this.y);
+        }
+
+        flush() {
+          this.world.forEach((val, x, y) => {
+            this.canvas.draw(x, y, val ? this.colors.fg : this.colors.bg);
+          });
+        }
+
+        _reset(x, y) {
+          this.canvas.draw(x, y, this.world.get(x, y) ? this.colors.fg : this.colors.bg);
+        }
+
+        _toggle(x, y) {
+          this.canvas.draw(x, y, this.world.toggle(x, y) ? this.colors.fg : this.colors.bg);
+        }
+
+        _blink(x, y) {
+          let blink = false;
+          this.canvas.draw(x, y, this.colors.bl);
+          window.clearInterval(this.blinker);
+
+          this.blinker = window.setInterval(() => {
+            blink ? this.canvas.draw(x, y, this.colors.bl) : this._reset(x, y);
+            blink = !blink;
+          }, 500);
         }
       };
 
@@ -300,6 +377,10 @@
 
       const bits = 64;
 
+      const bg = 'rgb(0, 0, 0)';
+      const fg = 'rgb(232, 52, 143)';
+      const bl = 'rgb(116, 26, 72)';
+
       const fsc = document.getElementById('fsc');
       const mns = document.getElementById('mns');
       const pls = document.getElementById('pls');
@@ -315,52 +396,36 @@
       const cvs = document.getElementById('cvs');
 
       const world = new World(bits);
+      const canvas = new Canvas(cvs, bits, window.innerWidth, window.innerHeight);
+      const cursor = new Cursor(world, canvas, {bg, fg, bl});
 
-      const canvas = new Canvas(cvs, bits, window.innerWidth, window.innerHeight, {
-        bg: 'rgb(0, 0, 0)',
-        fg: 'rgb(232, 52, 143)',
-        gr: 'rgb(7, 7, 7)',
-        hv: 'rgba(232, 52, 143, 0.5)',
-      });
-
-      const flush = () => world.forEach((x, y, val) => canvas.draw(x, y, val));
-      const reset = (x, y) => canvas.draw(x, y, world.get(x, y));
-      const hover = (x, y) => canvas.hover(x, y);
-      const draw = (x, y) => { canvas.draw(x, y, world.toggle(x, y)); pushState(); };
-      const pushState = () => window.history.pushState(null, document.title, `/#${world.path}`);
+      const pushState = () => {
+        window.history.pushState(null, document.title, `/#${world.path}`);
+      };
 
       const popState = () => {
         const hash = window.location.hash.slice(1);
         (hash === '') ? world.reset(defaultRows) : world.resetPath(hash);
-        flush();
+        cursor.flush();
       };
 
       popState();
 
-      let x = 0;
-      let y = 0;
-      let down = false;
-
-      cvs.addEventListener('mouseup', () => down = false);
-      cvs.addEventListener('mouseout', () => down = false);
+      cvs.addEventListener('mouseup', () => cursor.up());
+      cvs.addEventListener('mouseout', () => cursor.up());
 
       cvs.addEventListener('mousedown', (e) => {
         // Ignore right click.
         if (e.button === 2) return;
         e.preventDefault();
-        down = true;
-        draw(...canvas.coords(e.pageX, e.pageY));
+        cursor.down();
+        pushState();
       });
 
       cvs.addEventListener('mousemove', (e) => {
-        const [curX, curY] = canvas.coords(e.pageX, e.pageY);
-        // Do nothing, if we didn't leave the cell.
-        if (x === curX && y === curY) return;
-        // Reset previous cell.
-        reset(x, y);
-        x = curX;
-        y = curY;
-        (down || e.shiftKey) ? draw(x, y) : hover(x, y);
+        const [x, y] = canvas.coords(e.pageX, e.pageY);
+        const update = cursor.mvTo(x, y, e.shiftKey);
+        if (update) pushState();
       });
 
       fsc.addEventListener('click', (e) => {
@@ -376,13 +441,13 @@
       mns.addEventListener('click', (e) => {
         e.preventDefault();
         canvas.zoomOut();
-        flush();
+        cursor.flush();
       });
 
       pls.addEventListener('click', (e) => {
         e.preventDefault();
         canvas.zoomIn();
-        flush();
+        cursor.flush();
       });
 
       prv.addEventListener('click', (e) => {
@@ -398,28 +463,28 @@
       inv.addEventListener('click', (e) => {
         e.preventDefault();
         world.invert();
-        flush();
+        cursor.flush();
         pushState();
       });
 
       mrh.addEventListener('click', (e) => {
         e.preventDefault();
         world.mirror();
-        flush();
+        cursor.flush();
         pushState();
       });
 
       mrv.addEventListener('click', (e) => {
         e.preventDefault();
         world.reverse();
-        flush();
+        cursor.flush();
         pushState();
       });
 
       clr.addEventListener('click', (e) => {
         e.preventDefault();
         world.reset();
-        flush();
+        cursor.flush();
         pushState();
       });
 
@@ -448,42 +513,31 @@
 
       window.addEventListener('resize', () => {
         canvas.resize(window.innerWidth, window.innerHeight);
-        flush();
+        cursor.flush();
       });
 
       window.addEventListener('keydown', (e) => {
         switch (e.key) {
           case 'ArrowDown':
             e.preventDefault();
-            if (y + 1 >= bits) return;
-            reset(x, y);
-            y++;
-            e.shiftKey ? draw(x, y) : hover(x, y);
+            if(cursor.mvDown(e.shiftKey)) pushState();
             return;
           case 'ArrowUp':
             e.preventDefault();
-            if (y - 1 < 0) return;
-            reset(x, y);
-            y--;
-            e.shiftKey ? draw(x, y) : hover(x, y);
+            if(cursor.mvUp(e.shiftKey)) pushState();
             return;
           case 'ArrowRight':
             e.preventDefault();
-            if (x + 1 >= bits) return;
-            reset(x, y);
-            x++;
-            e.shiftKey ? draw(x, y) : hover(x, y);
+            if(cursor.mvRight(e.shiftKey)) pushState();
             return;
           case 'ArrowLeft':
             e.preventDefault();
-            if (x - 1 < 0) return;
-            reset(x, y);
-            x--;
-            e.shiftKey ? draw(x, y) : hover(x, y);
+            if(cursor.mvLeft(e.shiftKey)) pushState();
             return;
           case 'Shift':
             e.preventDefault();
-            draw(x, y);
+            cursor.draw();
+            pushState();
             return;
         }
 
@@ -493,40 +547,40 @@
           case '-':
             e.preventDefault();
             canvas.zoomOut();
-            flush();
+            cursor.flush();
             return;
           case '+':
             e.preventDefault();
             canvas.zoomIn();
-            flush();
+            cursor.flush();
             return;
           case '.':
             e.preventDefault();
             world.mirror();
-            flush();
+            cursor.flush();
             pushState();
             return;
           case ',':
             e.preventDefault();
             world.reverse();
-            flush();
+            cursor.flush();
             pushState();
             return;
           case '0':
             e.preventDefault();
             canvas.resize(window.innerWidth, window.innerHeight);
-            flush();
+            cursor.flush();
             return;
           case 'i':
             e.preventDefault();
             world.invert();
-            flush();
+            cursor.flush();
             pushState();
             return;
           case 'q':
             e.preventDefault();
             world.reset();
-            flush();
+            cursor.flush();
             pushState();
             return;
           case 'Enter':

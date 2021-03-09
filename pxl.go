@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 	"encoding/xml"
+	"errors"
 	"flag"
 	"image"
 	"image/color"
@@ -10,6 +11,7 @@ import (
 	"io"
 	"math/bits"
 	"net/http"
+	"net/url"
 	"path"
 	"strconv"
 	"strings"
@@ -36,108 +38,173 @@ const (
 	maxHeight = 1024
 )
 
-var (
-	bg = color.NRGBA{0, 0, 0, 255}
-	fg = color.NRGBA{232, 52, 143, 255}
-	bh = "#000000"
-	fh = "#e8348f"
-	bc = ' '
-	fc = '█'
-	//go:embed index.html
-	indexHTML []byte
-)
-
 func serve(w http.ResponseWriter, r *http.Request) {
-	pth := r.URL.Path
-
-	if pth == "/" {
-		if devMode {
-			http.ServeFile(w, r, "index.html")
-			return
-		}
-		w.Header().Add("Content-Type", "text/html; charset=utf-8")
-		w.Write(indexHTML)
+	if r.URL.Path == "/" {
+		serveIndex(w, r)
 		return
 	}
-	ext := path.Ext(pth)
+	ext := path.Ext(r.URL.Path)
+	pth := r.URL.Path[:len(r.URL.Path)-len(ext)]
+	pxl, err := decodePxl(pth)
 
-	if ext != "" {
-		pth = pth[:len(pth)-len(ext)]
-	}
-	strs := strings.Split(pth[1:], "/")
-	rows := len(strs)
-
-	if rows > maxRows {
+	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	vals := make([]uint64, rows)
-	cols := 0
-
-	for i, str := range strs {
-		val, err := strconv.ParseUint(str, 10, 64)
-
-		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		n := bits.Len64(val)
-
-		if n > maxCols {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		if n > cols {
-			cols = n
-		}
-		vals[i] = val
-	}
-	if cols == 0 || rows == 0 {
+	if pxl.Cols() == 0 || pxl.Cols() > maxCols || pxl.Rows() == 0 || pxl.Rows() > maxRows {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	var scale int
-	scaleX := maxWidth / cols
-	scaleY := maxHeight / rows
+	opts, err := decodeOptions(r.URL.Query())
 
-	if scaleX > scaleY {
-		scale = scaleY
-	} else {
-		scale = scaleX
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
 	}
 	switch ext {
 	case "", ".png":
 		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
 		w.Header().Add("Content-Type", "image/png")
-		encodePng(w, vals, cols, scale)
+		encodePng(w, pxl, opts)
 	case ".txt":
 		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
 		w.Header().Add("Content-Type", "text/plain; charset=utf-8")
-		encodeTxt(w, vals, cols)
+		encodeTxt(w, pxl)
 	case ".svg":
 		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
 		w.Header().Add("Content-Type", "image/svg+xml")
-		encodeSvg(w, vals, cols, scale)
+		encodeSvg(w, pxl, opts)
 	default:
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 }
 
-func encodePng(w io.Writer, vals []uint64, cols int, scale int) error {
-	img := image.NewNRGBA(image.Rect(0, 0, cols*scale, len(vals)*scale))
+//go:embed index.html
+var indexHTML []byte
 
-	for row, val := range vals {
-		for col := 0; col < cols; col++ {
-			var clr color.Color
+func serveIndex(w http.ResponseWriter, r *http.Request) {
+	if devMode {
+		http.ServeFile(w, r, "index.html")
+	} else {
+		w.Header().Add("Content-Type", "text/html; charset=utf-8")
+		w.Write(indexHTML)
+	}
+}
 
-			if val&(1<<col) == 0 {
-				clr = bg
-			} else {
-				clr = fg
+type pxl struct {
+	rows []uint64
+	cols int
+}
+
+func decodePxl(pth string) (*pxl, error) {
+	if pth == "" || pth[0] != '/' {
+		return nil, errors.New("invalid pxl path")
+	}
+	prts := strings.Split(pth[1:], "/")
+	pxl := &pxl{rows: make([]uint64, len(prts))}
+
+	for i, prt := range prts {
+		row, err := strconv.ParseUint(prt, 10, 64)
+
+		if err != nil {
+			return nil, err
+		}
+		pxl.SetRow(i, row)
+	}
+	return pxl, nil
+}
+
+func (p *pxl) SetRow(y int, row uint64) {
+	n := bits.Len64(row)
+
+	if n > p.cols {
+		p.cols = n
+	}
+	p.rows[y] = row
+}
+
+func (p *pxl) Get(x, y int) bool {
+	return (p.rows[y] & (1 << x)) != 0
+}
+
+func (p *pxl) Rows() int {
+	return len(p.rows)
+}
+
+func (p *pxl) Cols() int {
+	return p.cols
+}
+
+func (p *pxl) MaxScale(w, h int) int {
+	scaleX := w / p.Cols()
+	scaleY := h / p.Rows()
+
+	if scaleX < scaleY {
+		return scaleX
+	}
+	return scaleY
+}
+
+var (
+	defaultBg = color.NRGBA{0, 0, 0, 255}
+	defaultFg = color.NRGBA{232, 52, 143, 255}
+)
+
+type options struct {
+	Fg color.NRGBA
+	Bg color.NRGBA
+}
+
+func decodeOptions(params url.Values) (options, error) {
+	opts := options{
+		Fg: defaultFg,
+		Bg: defaultBg,
+	}
+	if fg := params.Get("fg"); fg != "" {
+		clr, err := decodeColor(fg)
+
+		if err != nil {
+			return opts, err
+		}
+		opts.Fg = clr
+	}
+	if bg := params.Get("bg"); bg != "" {
+		clr, err := decodeColor(bg)
+
+		if err != nil {
+			return opts, err
+		}
+		opts.Bg = clr
+	}
+	return opts, nil
+}
+
+func decodeColor(s string) (color.NRGBA, error) {
+	val, err := strconv.ParseUint(s, 10, 32)
+
+	clr := color.NRGBA{
+		R: uint8((val >> 24) & 0xff),
+		G: uint8((val >> 16) & 0xff),
+		B: uint8((val >> 8) & 0xff),
+		A: uint8((val >> 0) & 0xff),
+	}
+	return clr, err
+}
+
+func encodePng(w io.Writer, pxl *pxl, opts options) error {
+	scl := pxl.MaxScale(maxWidth, maxHeight)
+	img := image.NewNRGBA(image.Rect(0, 0, pxl.Cols()*scl, pxl.Rows()*scl))
+
+	for row := 0; row < pxl.Rows(); row++ {
+		for col := 0; col < pxl.Cols(); col++ {
+			clr := opts.Bg
+
+			if pxl.Get(col, row) {
+				clr = opts.Fg
 			}
-			for x := col * scale; x < (col+1)*scale; x++ {
-				for y := row * scale; y < (row+1)*scale; y++ {
+			for x := col * scl; x < (col+1)*scl; x++ {
+				for y := row * scl; y < (row+1)*scl; y++ {
 					img.Set(x, y, clr)
 				}
 			}
@@ -146,13 +213,18 @@ func encodePng(w io.Writer, vals []uint64, cols int, scale int) error {
 	return png.Encode(w, img)
 }
 
-func encodeTxt(w io.Writer, vals []uint64, cols int) error {
-	buf := make([]rune, cols+1)
-	buf[cols] = '\n'
+const (
+	bc = ' '
+	fc = '█'
+)
 
-	for _, val := range vals {
-		for col := 0; col < cols; col++ {
-			if val&(1<<col) == 0 {
+func encodeTxt(w io.Writer, pxl *pxl) error {
+	buf := make([]rune, pxl.Cols()+1)
+	buf[pxl.Cols()] = '\n'
+
+	for row := 0; row < pxl.Rows(); row++ {
+		for col := 0; col < pxl.Cols(); col++ {
+			if pxl.Get(col, row) {
 				buf[col] = bc
 			} else {
 				buf[col] = fc
@@ -167,10 +239,11 @@ func encodeTxt(w io.Writer, vals []uint64, cols int) error {
 
 type svg struct {
 	XMLName xml.Name `xml:"svg"`
+	Xmlns   string   `xml:"xmlns,attr"`
 	Width   string   `xml:"width,attr"`
 	Height  string   `xml:"height,attr"`
-	Xmlns   string   `xml:"xmlns,attr"`
-	Rects   []svgRect
+	Bg      svgRect
+	Fg      svgGroup
 }
 
 type svgRect struct {
@@ -179,27 +252,36 @@ type svgRect struct {
 	Y       string   `xml:"y,attr"`
 	Width   string   `xml:"width,attr"`
 	Height  string   `xml:"height,attr"`
-	Fill    string   `xml:"fill,attr"`
+	Fill    string   `xml:"fill,attr,omitempty"`
 }
 
-func encodeSvg(w io.Writer, vals []uint64, cols, scale int) error {
+type svgGroup struct {
+	XMLName xml.Name `xml:"g"`
+	Fill    string   `xml:"fill,attr,omitempty"`
+	Childs  []svgRect
+}
+
+func encodeSvg(w io.Writer, pxl *pxl, opts options) error {
+	scl := pxl.MaxScale(maxWidth, maxHeight)
+	bgr := encodeSvgColor(opts.Bg)
+	fgr := encodeSvgColor(opts.Fg)
 	svg := svg{
-		Width:  strconv.Itoa(cols * scale),
-		Height: strconv.Itoa(len(vals) * scale),
 		Xmlns:  "http://www.w3.org/2000/svg",
-		Rects:  []svgRect{{X: "0", Y: "0", Width: "100%", Height: "100%", Fill: bh}},
+		Width:  strconv.Itoa(pxl.Cols() * scl),
+		Height: strconv.Itoa(pxl.Rows() * scl),
+		Bg:     svgRect{X: "0", Y: "0", Width: "100%", Height: "100%", Fill: bgr},
+		Fg:     svgGroup{Fill: fgr},
 	}
-	for row, val := range vals {
-		for col := 0; col < cols; col++ {
-			if val&(1<<col) == 0 {
+	for row := 0; row < pxl.Rows(); row++ {
+		for col := 0; col < pxl.Cols(); col++ {
+			if !pxl.Get(col, row) {
 				continue
 			}
-			svg.Rects = append(svg.Rects, svgRect{
-				X:      strconv.Itoa(col * scale),
-				Y:      strconv.Itoa(row * scale),
-				Width:  strconv.Itoa(scale),
-				Height: strconv.Itoa(scale),
-				Fill:   fh,
+			svg.Fg.Childs = append(svg.Fg.Childs, svgRect{
+				X:      strconv.Itoa(col * scl),
+				Y:      strconv.Itoa(row * scl),
+				Width:  strconv.Itoa(scl),
+				Height: strconv.Itoa(scl),
 			})
 		}
 	}
@@ -207,4 +289,21 @@ func encodeSvg(w io.Writer, vals []uint64, cols, scale int) error {
 		return err
 	}
 	return xml.NewEncoder(w).Encode(svg)
+}
+
+const hextable = "0123456789abcdef"
+
+func encodeSvgColor(clr color.NRGBA) string {
+	rgba := []byte{
+		'#',
+		hextable[clr.R>>4],
+		hextable[clr.R&0x0f],
+		hextable[clr.G>>4],
+		hextable[clr.G&0x0f],
+		hextable[clr.B>>4],
+		hextable[clr.B&0x0f],
+		hextable[clr.A>>4],
+		hextable[clr.A&0x0f],
+	}
+	return string(rgba)
 }

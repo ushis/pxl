@@ -162,14 +162,6 @@
           this.reset(rows);
         }
 
-        forEach(fn) {
-          for (let y = 0; y < this.rows.length; y++) {
-            for (let x = 0; x < this.bits; x++) {
-              fn(this.get(x, y), x, y);
-            }
-          }
-        }
-
         get path() {
           return `/${this.rows.join('/')}`;
         }
@@ -310,9 +302,11 @@
         }
 
         flush() {
-          this.world.forEach((val, x, y) => {
-            this.canvas.draw(x, y, val ? this.colors.fg : this.colors.bg);
-          });
+          for (let x = 0; x < this.world.bits; x++) {
+            for (let y = 0; y < this.world.bits; y++) {
+              this._reset(x, y);
+            }
+          }
         }
 
         _reset(x, y) {

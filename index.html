@@ -279,6 +279,15 @@
           pxl |= BigInt(this.a) << 0n;
           return pxl;
         }
+
+        center(other) {
+          return new Color(
+            Math.floor((this.r + other.r) / 2),
+            Math.floor((this.g + other.g) / 2),
+            Math.floor((this.b + other.b) / 2),
+            Math.floor((this.a + other.a) / 2),
+          );
+        }
       }
 
       class Cursor {
@@ -370,21 +379,25 @@
           return this.colors.bg;
         }
 
+        get bl() {
+          return this.fg.center(this.bg);
+        }
+
         _reset(x, y) {
-          this.canvas.draw(x, y, this.world.get(x, y) ? this.colors.fg.css : this.colors.bg.css);
+          this.canvas.draw(x, y, this.world.get(x, y) ? this.fg.css : this.bg.css);
         }
 
         _toggle(x, y) {
-          this.canvas.draw(x, y, this.world.toggle(x, y) ? this.colors.fg.css : this.colors.bg.css);
+          this.canvas.draw(x, y, this.world.toggle(x, y) ? this.fg.css : this.bg.css);
         }
 
         _blink(x, y) {
           let blink = false;
-          this.canvas.draw(x, y, this.colors.bl.css);
+          this.canvas.draw(x, y, this.bl.css);
           window.clearInterval(this.blinker);
 
           this.blinker = window.setInterval(() => {
-            blink ? this.canvas.draw(x, y, this.colors.bl) : this._reset(x, y);
+            blink ? this.canvas.draw(x, y, this.bl.css) : this._reset(x, y);
             blink = !blink;
           }, 500);
         }
@@ -491,7 +504,6 @@
 
       const bg = new Color(0, 0, 0, 255);
       const fg = new Color(232, 52, 143, 255);
-      const bl = new Color(116, 26, 72, 255);
 
       const fsc = document.getElementById('fsc');
       const mns = document.getElementById('mns');
@@ -513,7 +525,7 @@
 
       const world = new World(bits);
       const canvas = new Canvas(cvs, bits, window.innerWidth, window.innerHeight);
-      const cursor = new Cursor(world, canvas, {bg, fg, bl});
+      const cursor = new Cursor(world, canvas, {bg, fg});
       const picker = new ColorPicker(new Canvas(pckCvs, bits, window.innerWidth, window.innerHeight));
 
       const pushState = () => {

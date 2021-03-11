@@ -251,10 +251,10 @@
           return this.ctx.getImageData(realX, realY, 1, 1).data;
         }
 
-        coords(x, y) {
+        coords(pageX, pageY) {
           return [
-            Math.trunc((x - this.el.offsetLeft) / this.scale),
-            Math.trunc((y - this.el.offsetTop) / this.scale),
+            Math.trunc((pageX - this.el.offsetLeft) / this.scale),
+            Math.trunc((pageY - this.el.offsetTop) / this.scale),
           ];
         }
       };
@@ -294,7 +294,8 @@
         constructor(world, canvas, colors) {
           this.world = world;
           this.canvas = canvas;
-          this.colors = colors;
+          this.fg = colors.fg;
+          this.bg = colors.bg;
           this.x = Math.trunc(bits / 2);
           this.y = Math.trunc(bits / 2);
           this.isDown = false;
@@ -323,7 +324,7 @@
 
         mvTo(pageX, pageY, draw = false) {
           const [x, y] = this.canvas.coords(pageX, pageY);
-          this._mvTo(x, y, draw);
+          return this._mvTo(x, y, draw);
         }
 
         mvUp(draw = false) {
@@ -361,22 +362,6 @@
               this._reset(x, y);
             }
           }
-        }
-
-        set fg(fg) {
-          this.colors.fg = fg;
-        }
-
-        get fg() {
-          return this.colors.fg;
-        }
-
-        set bg(bg) {
-          this.colors.bg = bg;
-        }
-
-        get bg() {
-          return this.colors.bg;
         }
 
         get bl() {
@@ -422,14 +407,14 @@
           for (let x = 0; x < this.canvas.bits; x++) {
             for (let y = 0; y < this.canvas.bits; y++) {
               const [h, s, l] = this._hsl(x, y);
-              this.canvas.draw(x, y, `hsl(${h}, ${s*100}%, ${l*100}%)`);
+              this.canvas.draw(x, y, `hsl(${h*360}, ${s*100}%, ${l*100}%)`);
             }
           }
         }
 
         _hsl(x, y) {
-          const [r, phi] = this._polarCoords(x, y);
-          const h = (phi * 180) / Math.PI;
+          const [r, a] = this._polarCoords(x, y);
+          const h = a / (2 * Math.PI);
           const s = r / this._radius(this.canvas.bits, this.canvas.bits);
           const l = this.lightness;
           return [h, s, l];

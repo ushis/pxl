@@ -7,18 +7,8 @@
       * {
         margin: 0;
         padding: 0;
-      }
-      a {
-        text-decoration: none;
-      }
-      a:hover {
-        opacity: 0.75;
-      }
-      a:active {
-        opacity: 0.5;
-      }
-      a img {
-        height: 32px;
+        border: 0 none transparent;
+        outline: 0;
       }
       .mr-1 {
         margin-right: 1em;
@@ -38,15 +28,23 @@
       .cvs {
         cursor: pointer;
       }
-      #menu {
+      .menu {
         position: fixed;
         top: 16px;
         right: 16px;
       }
-      #c {
-        position: fixed;
-        bottom: 8px;
-        right: 16px;
+      .menu button {
+        cursor: pointer;
+      }
+      .menu button:hover {
+        opacity: 0.75;
+      }
+      .menu button:active {
+        opacity: 0.5;
+      }
+      .menu button img {
+        height: 32px;
+        vertical-align: middle;
       }
       [hidden] {
         display: none;
@@ -54,65 +52,101 @@
     </style>
   </head>
   <body>
-    <div class="container">
-      <canvas id="cvs" class="cvs"></canvas>
+    <div id="pxl" class="frame">
+      <div class="container">
+        <canvas class="cvs"></canvas>
+      </div>
+      <div class="menu">
+        <button id="pxl-fsc" title="Fullscreen">
+          <img src="/511/257/365/325/257/325/365/257/511.svg"/>
+        </button>
+        <button id="pxl-mns" title="Zoom Out (Ctrl + -)">
+          <img src="/255/129/129/129/189/129/129/129/255.svg"/>
+        </button>
+        <button id="pxl-pls" class="mr-1" title="Zoom In (Ctrl + +)">
+          <img src="/511/257/273/273/381/273/273/257/511.svg"/>
+        </button>
+        <button id="pxl-prv" title="Undo (Ctrl + Z)">
+          <img src="/127/65/81/89/93/89/81/65/127.svg"/>
+        </button>
+        <button id="pxl-nxt" class="mr-1" title="Redo (Ctrl + Shift + Z)">
+          <img src="/127/65/69/77/93/77/69/65/127.svg"/>
+        </button>
+        <button id="pxl-fgr" title="Choose Foreground Color">
+          <img src="/511/257/285/381/349/329/377/257/511.svg"/>
+        </button>
+        <button id="pxl-bgr" class="mr-1" title="Choose Background Color">
+          <img src="/511/257/285/373/381/377/377/257/511.svg"/>
+        </button>
+        <button id="pxl-inv" title="Invert (Ctrl + I)">
+          <img src="/2047/1025/1505/1445/1325/1445/1505/1025/2047.svg"/>
+        </button>
+        <button id="pxl-mrh" title="Mirror H (Ctrl + .)">
+          <img src="/511/257/273/273/341/273/273/257/511.svg"/>
+        </button>
+        <button id="pxl-mrv" title="Mirror V (Ctrl + ,)">
+          <img src="/511/257/273/257/381/257/273/257/511.svg"/>
+        </button>
+        <button id="pxl-clr" class="mr-1" title="Clear (Ctrl + Q)">
+          <img src="/511/257/365/313/273/313/365/257/511.svg"/>
+        </button>
+        <button id="pxl-txt" title="TXT">
+          <img src="/32767/16385/23901/18761/18569/18761/18761/16385/32767.svg"/>
+        </button>
+        <button id="pxl-svg" title="SVG">
+          <img src="/262143/131073/193629/136261/186077/168849/192797/131073/262143.svg"/>
+        </button>
+        <button id="pxl-png" title="PNG (Ctrl + Enter)">
+          <img src="/131071/65537/96861/68309/93149/84805/96837/65537/131071.svg"/>
+        </button>
+      </div>
     </div>
-    <div id="menu">
-      <a id="fsc" href="#" title="Fullscreen">
-        <img src="/511/257/365/325/257/325/365/257/511.svg"/>
-      </a>
-      <a id="mns" href="#" title="Zoom Out (Ctrl + -)">
-        <img src="/255/129/129/129/189/129/129/129/255.svg"/>
-      </a>
-      <a id="pls" class="mr-1" href="#" title="Zoom In (Ctrl + +)">
-        <img src="/511/257/273/273/381/273/273/257/511.svg"/>
-      </a>
-      <a id="prv" href="#" title="Undo (Ctrl + Z)">
-        <img src="/127/65/81/89/93/89/81/65/127.svg"/>
-      </a>
-      <a id="nxt" class="mr-1" href="#" title="Redo (Ctrl + Shift + Z)">
-        <img src="/127/65/69/77/93/77/69/65/127.svg"/>
-      </a>
-      <a id="fgr" href="#" title="Choose Foreground Color">
-        <img src="/511/257/285/381/349/329/377/257/511.svg"/>
-      </a>
-      <a id="bgr" class="mr-1" href="#" title="Choose Background Color">
-        <img src="/511/257/285/373/381/377/377/257/511.svg"/>
-      </a>
-      <a id="inv" href="#" title="Invert (Ctrl + I)">
-        <img src="/2047/1025/1505/1445/1325/1445/1505/1025/2047.svg"/>
-      </a>
-      <a id="mrh" href="#" title="Mirror H (Ctrl + .)">
-        <img src="/511/257/273/273/341/273/273/257/511.svg"/>
-      </a>
-      <a id="mrv" href="#" title="Mirror V (Ctrl + ,)">
-        <img src="/511/257/273/257/381/257/273/257/511.svg"/>
-      </a>
-      <a id="clr" class="mr-1" href="#" title="Clear (Ctrl + Q)">
-        <img src="/511/257/365/313/273/313/365/257/511.svg"/>
-      </a>
-      <a id="txt" href="#" title="TXT">
-        <img src="/32767/16385/23901/18761/18569/18761/18761/16385/32767.svg"/>
-      </a>
-      <a id="svg" href="#" title="SVG">
-        <img src="/262143/131073/193629/136261/186077/168849/192797/131073/262143.svg"/>
-      </a>
-      <a id="png" href="#" title="PNG (Ctrl + Enter)">
-        <img src="/131071/65537/96861/68309/93149/84805/96837/65537/131071.svg"/>
-      </a>
-    </div>
-    <div id="c">
-      <a href="/34359738367/34091302913/34220502845/34120098669/34154178413/34120360813/34220502845/17179869185/25565293965/24542670301/24542670253/25616412045/24491556237/17179869185/34359738367.png" title="Copyright">
-        <img src="/255/129/153/165/133/165/153/129/255.svg"/>
-      </a>
-    </div>
-    <div id="pck" class="container" hidden>
-      <canvas class="cvs"></canvas>
+    <div id="clr" class="frame" hidden>
+      <div class="container">
+        <canvas class="cvs"></canvas>
+      </div>
+      <div class="menu">
+        <button id="clr-mns" title="Zoom Out">
+          <img src="/255/129/129/129/189/129/129/129/255.svg"/>
+        </button>
+        <button id="clr-pls" class="mr-1" title="Zoom In">
+          <img src="/511/257/273/273/381/273/273/257/511.svg"/>
+        </button>
+        <button id="clr-drk" title="Darken">
+          <img src="/511/257/297/325/257/325/297/257/511.svg"/>
+        </button>
+        <button id="clr-lgt" class="mr-1" title="Lighten">
+          <img src="/511/257/341/313/381/313/341/257/511.svg"/>
+        </button>
+        <button id="clr-cls" title="Close">
+          <img src="/511/257/365/313/273/313/365/257/511.svg"/>
+        </button>
+      </div>
     </div>
     <script>
       'use strict';
 
-      class World {
+      class EventManager {
+        constructor() {
+          this.handlers = {};
+        }
+
+        on(name, handler) {
+          if (this.handlers[name] === undefined)
+            this.handlers[name] = [];
+
+          this.handlers[name].push(handler);
+        }
+
+        emit(name, ...args) {
+          if (this.handlers[name] === undefined)
+            return;
+
+          this.handlers[name].forEach((handler) => handler(...args));
+        }
+      }
+
+      class Pxl {
         constructor(bits) {
           this.bits = bits;
           this.rows = new BigUint64Array(this.bits);
@@ -211,6 +245,23 @@
           this.el = el;
           this.bits = bits;
           this.ctx = this.el.getContext('2d');
+          this.eventManager = new EventManager();
+
+          this.el.addEventListener('mousemove', (e) => {
+            const [x, y] = this._coords(e.pageX, e.pageY);
+            this.eventManager.emit('move', x, y, e.buttons === 1 || e.shiftKey);
+          });
+
+          this.el.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            this.eventManager.emit('down', ...this._coords(e.pageX, e.pageY));
+          });
+
+          this.el.addEventListener('click', (e) => {
+            if (e.button !== 0) return;
+            this.eventManager.emit('click', ...this._coords(e.pageX, e.pageY));
+          });
+
           this.resize(width, height);
         }
 
@@ -251,7 +302,11 @@
           return this.ctx.getImageData(realX, realY, 1, 1).data;
         }
 
-        coords(pageX, pageY) {
+        on(name, handler) {
+          this.eventManager.on(name, handler);
+        }
+
+        _coords(pageX, pageY) {
           return [
             Math.trunc((pageX - this.el.offsetLeft) / this.scale),
             Math.trunc((pageY - this.el.offsetTop) / this.scale),
@@ -260,6 +315,14 @@
       };
 
       class Color {
+        static decode(pxl) {
+          const r = Number((BigInt(pxl) >> 24n) & 0xffn);
+          const g = Number((BigInt(pxl) >> 16n) & 0xffn);
+          const b = Number((BigInt(pxl) >> 8n) & 0xffn);
+          const a = Number((BigInt(pxl) >> 0n) & 0xffn);
+          return new Color(r, g, b, a);
+        }
+
         constructor(r, g, b, a) {
           this.r = r;
           this.g = g;
@@ -291,21 +354,25 @@
       }
 
       class Cursor {
-        constructor(world, canvas, colors) {
-          this.world = world;
+        constructor(pxl, canvas, colors) {
+          this.pxl = pxl;
           this.canvas = canvas;
           this.fg = colors.fg;
           this.bg = colors.bg;
           this.x = Math.trunc(bits / 2);
           this.y = Math.trunc(bits / 2);
-          this.isDown = false;
           this.blinker = null;
+          this.eventManager = new EventManager();
+
+          this.canvas.on('move', (x, y, draw) => this.mvTo(x, y, draw));
+          this.canvas.on('down', (x, y) => this.draw());
+
           this._blink(this.x, this.y);
         }
 
-        _mvTo(x, y, draw = false) {
+        mvTo(x, y, draw = false) {
           // Check bounds.
-          if (x < 0 || this.world.bits <= x || y < 0 || this.world.bits <= y) return false;
+          if (x < 0 || this.pxl.bits <= x || y < 0 || this.pxl.bits <= y) return false;
           // Do nothing if the cursor didn't move.
           if (x === this.x && y === this.y) return false;
           // Reset prev cell.
@@ -316,52 +383,43 @@
           // Reset blinker.
           this._blink(this.x, this.y)
           // Are we done?
-          if (!draw && !this.isDown) return false;
+          if (!draw) return false;
           // Draw if cursor is down.
-          this._toggle(this.x, this.y);
+          this.draw();
           return true;
         }
 
-        mvTo(pageX, pageY, draw = false) {
-          const [x, y] = this.canvas.coords(pageX, pageY);
-          return this._mvTo(x, y, draw);
-        }
-
         mvUp(draw = false) {
-          return this._mvTo(this.x, this.y - 1, draw);
+          return this.mvTo(this.x, this.y - 1, draw);
         }
 
         mvDown(draw = false) {
-          return this._mvTo(this.x, this.y + 1, draw);
+          return this.mvTo(this.x, this.y + 1, draw);
         }
 
         mvLeft(draw = false) {
-          return this._mvTo(this.x - 1, this.y, draw);
+          return this.mvTo(this.x - 1, this.y, draw);
         }
 
         mvRight(draw = false) {
-          return this._mvTo(this.x + 1, this.y, draw);
-        }
-
-        up() {
-          this.isDown = false;
-        }
-
-        down() {
-          this._toggle(this.x, this.y);
-          this.isDown = true;
+          return this.mvTo(this.x + 1, this.y, draw);
         }
 
         draw() {
           this._toggle(this.x, this.y);
+          this.eventManager.emit('draw', this.x, this.y);
         }
 
         async flush() {
-          for (let x = 0; x < this.world.bits; x++) {
-            for (let y = 0; y < this.world.bits; y++) {
+          for (let x = 0; x < this.pxl.bits; x++) {
+            for (let y = 0; y < this.pxl.bits; y++) {
               this._reset(x, y);
             }
           }
+        }
+
+        on(name, handler) {
+          this.eventManager.on(name, handler);
         }
 
         get bl() {
@@ -369,11 +427,11 @@
         }
 
         _reset(x, y) {
-          this.canvas.draw(x, y, this.world.get(x, y) ? this.fg.css : this.bg.css);
+          this.canvas.draw(x, y, this.pxl.get(x, y) ? this.fg.css : this.bg.css);
         }
 
         _toggle(x, y) {
-          this.canvas.draw(x, y, this.world.toggle(x, y) ? this.fg.css : this.bg.css);
+          this.canvas.draw(x, y, this.pxl.toggle(x, y) ? this.fg.css : this.bg.css);
         }
 
         _blink(x, y) {
@@ -389,18 +447,46 @@
       };
 
       class ColorPicker {
+        static get lightnessStep() {
+          return 0.1;
+        }
+
         constructor(canvas, lightness = 0.5) {
           this.canvas = canvas;
           this.lightness = lightness;
+          this.eventManager = new EventManager();
+
+          this.canvas.on('click', (x, y) => {
+            this.eventManager.emit('pick', new Color(...this.canvas.rgba(x, y)));
+          });
+
           this._flush();
         }
 
-        color(x, y) {
-          return new Color(...this.canvas.rgba(x, y));
+        lighten() {
+          if (this.lightness + ColorPicker.lightnessStep > 1) return;
+          this.lightness += ColorPicker.lightnessStep;
+          this._flush();
         }
 
-        coords(pageX, pageY) {
-          return this.canvas.coords(pageX, pageY);
+        darken() {
+          if (this.lightness - ColorPicker.lightnessStep < 0) return;
+          this.lightness -= ColorPicker.lightnessStep;
+          this._flush();
+        }
+
+        zoomIn() {
+          this.canvas.zoomIn();
+          this._flush();
+        }
+
+        zoomOut() {
+          this.canvas.zoomOut();
+          this._flush();
+        }
+
+        on(name, handler) {
+          this.eventManager.on(name, handler);
         }
 
         async _flush() {
@@ -444,6 +530,37 @@
           ];
         }
       };
+
+      class Button {
+        constructor(el) {
+          this.el = el;
+          this.img = el.querySelector('img');
+          this.eventManager = new EventManager();
+
+          this.el.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.eventManager.emit('click');
+          });
+        }
+
+        on(name, handler) {
+          this.eventManager.on(name, handler);
+        }
+
+        set fg(fg) {
+          this._setColor('fg', fg);
+        }
+
+        set bg(bg) {
+          this._setColor('bg', bg);
+        }
+
+        _setColor(key, color) {
+          const url = new URL(this.img.src, window.location.href);
+          url.searchParams.set(key, color.pxl);
+          this.img.src = url.href;
+        }
+      }
 
       const defaultRows = [
         0n,
@@ -490,72 +607,108 @@
       const bg = new Color(0, 0, 0, 255);
       const fg = new Color(232, 52, 143, 255);
 
-      const fsc = document.getElementById('fsc');
-      const mns = document.getElementById('mns');
-      const pls = document.getElementById('pls');
-      const prv = document.getElementById('prv');
-      const nxt = document.getElementById('nxt');
-      const fgr = document.getElementById('fgr');
-      const bgr = document.getElementById('bgr');
-      const inv = document.getElementById('inv');
-      const mrh = document.getElementById('mrh');
-      const mrv = document.getElementById('mrv');
-      const clr = document.getElementById('clr');
-      const txt = document.getElementById('txt');
-      const svg = document.getElementById('svg');
-      const png = document.getElementById('png');
-      const cvs = document.getElementById('cvs');
-      const pck = document.getElementById('pck');
-      const pckCvs = pck.querySelector('.cvs');
+      const pxlFsc = new Button(document.getElementById('pxl-fsc'));
+      const pxlMns = new Button(document.getElementById('pxl-mns'));
+      const pxlPls = new Button(document.getElementById('pxl-pls'));
+      const pxlPrv = new Button(document.getElementById('pxl-prv'));
+      const pxlNxt = new Button(document.getElementById('pxl-nxt'));
+      const pxlFgr = new Button(document.getElementById('pxl-fgr'));
+      const pxlBgr = new Button(document.getElementById('pxl-bgr'));
+      const pxlInv = new Button(document.getElementById('pxl-inv'));
+      const pxlMrh = new Button(document.getElementById('pxl-mrh'));
+      const pxlMrv = new Button(document.getElementById('pxl-mrv'));
+      const pxlClr = new Button(document.getElementById('pxl-clr'));
+      const pxlTxt = new Button(document.getElementById('pxl-txt'));
+      const pxlSvg = new Button(document.getElementById('pxl-svg'));
+      const pxlPng = new Button(document.getElementById('pxl-png'));
+      const clrMns = new Button(document.getElementById('clr-mns'));
+      const clrPls = new Button(document.getElementById('clr-pls'));
+      const clrDrk = new Button(document.getElementById('clr-drk'));
+      const clrLgt = new Button(document.getElementById('clr-lgt'));
+      const clrCls = new Button(document.getElementById('clr-cls'));
 
-      const world = new World(bits);
-      const canvas = new Canvas(cvs, bits, window.innerWidth, window.innerHeight);
-      const cursor = new Cursor(world, canvas, {bg, fg});
-      const picker = new ColorPicker(new Canvas(pckCvs, bits, window.innerWidth, window.innerHeight));
+      const buttons = [
+        pxlFsc,
+        pxlMns,
+        pxlPls,
+        pxlPrv,
+        pxlNxt,
+        pxlFgr,
+        pxlBgr,
+        pxlInv,
+        pxlMrh,
+        pxlMrv,
+        pxlClr,
+        pxlTxt,
+        pxlSvg,
+        pxlPng,
+        clrMns,
+        clrPls,
+        clrDrk,
+        clrLgt,
+        clrCls,
+      ];
+
+      const pxlFrm = document.getElementById('pxl')
+      const pxlCvs = pxlFrm.querySelector('.cvs');
+
+      const clrFrm = document.getElementById('clr');
+      const clrCvs = clrFrm.querySelector('.cvs');
+
+      const pxl = new Pxl(bits);
+      const pxlCanvas = new Canvas(pxlCvs, bits, window.innerWidth, window.innerHeight);
+      const pxlCursor = new Cursor(pxl, pxlCanvas, {bg, fg});
+      const clrCanvas = new Canvas(clrCvs, bits, window.innerWidth, window.innerHeight)
+      const clrPicker = new ColorPicker(clrCanvas);
 
       const pushState = () => {
-        window.history.pushState(null, document.title, `/#${world.path}`);
+        const path = `${pxl.path}?fg=${pxlCursor.fg.pxl}&bg=${pxlCursor.bg.pxl}`;
+        window.history.pushState(null, document.title, `/#${path}`);
       };
 
       const popState = () => {
         const hash = window.location.hash.slice(1);
-        (hash === '') ? world.reset(defaultRows) : world.resetPath(hash);
-        cursor.flush();
+
+        if (hash === '') {
+          pxl.reset(defaultRows);
+          pxlCursor.fg = fg;
+          pxlCursor.bg = bg;
+        } else {
+          const url = new URL(hash, window.location.href);
+          const fgPrm = url.searchParams.get('fg');
+          const bgPrm = url.searchParams.get('bg');
+          pxl.resetPath(url.pathname);
+          pxlCursor.fg = (fgPrm === null) ? fg : Color.decode(fgPrm);
+          pxlCursor.bg = (bgPrm === null) ? bg : Color.decode(bgPrm);
+        }
+        pxlCursor.flush();
+
+        buttons.forEach((btn) => {
+          btn.fg = pxlCursor.fg;
+          btn.bg = pxlCursor.bg;
+        });
+
+        clr.hidden = true;
       };
 
       popState();
 
-      cvs.addEventListener('mouseup', () => cursor.up());
-      cvs.addEventListener('mouseout', () => cursor.up());
+      pxlCursor.on('draw', () => pushState());
 
-      cvs.addEventListener('mousedown', (e) => {
-        // Ignore right click.
-        if (e.button === 2) return;
-        e.preventDefault();
-        cursor.down();
-        pushState();
-      });
-
-      cvs.addEventListener('mousemove', (e) => {
-        const update = cursor.mvTo(e.pageX, e.pageY, e.shiftKey);
-        if (update) pushState();
-      });
-
-      pckCvs.addEventListener('click', (e) => {
-        const [x, y] = picker.coords(e.pageX, e.pageY);
-        pck.hidden = true;
-
-        if (pck.dataset.g === 'fg') {
-          cursor.fg = picker.color(x, y);
+      clrPicker.on('pick', (color) => {
+        if (clrFrm.dataset.g === 'fg') {
+          pxlCursor.fg = color;
+          buttons.forEach((btn) => btn.fg = color);
         } else {
-          cursor.bg = picker.color(x, y);
+          pxlCursor.bg = color;
+          buttons.forEach((btn) => btn.bg = color);
         }
-        cursor.flush();
+        pxlCursor.flush();
+        pushState();
+        clrFrm.hidden = true;
       });
 
-      fsc.addEventListener('click', (e) => {
-        e.preventDefault();
-
+      pxlFsc.on('click', () => {
         if (document.fullscreenElement === null) {
           document.body.requestFullscreen();
         } else {
@@ -563,87 +716,80 @@
         }
       });
 
-      mns.addEventListener('click', (e) => {
-        e.preventDefault();
-        canvas.zoomOut();
-        cursor.flush();
+      pxlMns.on('click', () => {
+        pxlCanvas.zoomOut();
+        pxlCursor.flush();
       });
 
-      pls.addEventListener('click', (e) => {
-        e.preventDefault();
-        canvas.zoomIn();
-        cursor.flush();
+      pxlPls.on('click', () => {
+        pxlCanvas.zoomIn();
+        pxlCursor.flush();
       });
 
-      prv.addEventListener('click', (e) => {
-        e.preventDefault();
+      pxlPrv.on('click', () => {
         window.history.go(-1);
       });
 
-      nxt.addEventListener('click', (e) => {
-        e.preventDefault();
+      pxlNxt.on('click', () => {
         window.history.go(1);
       });
 
-      fgr.addEventListener('click', (e) => {
-        e.preventDefault();
-        pck.hidden = false;
-        pck.dataset.g = 'fg';
+      pxlFgr.on('click', () => {
+        clrFrm.hidden = false;
+        clrFrm.dataset.g = 'fg';
       });
 
-      bgr.addEventListener('click', (e) => {
-        e.preventDefault();
-        pck.hidden = false;
-        pck.dataset.g = 'bg';
+      pxlBgr.on('click', () => {
+        clrFrm.hidden = false;
+        clrFrm.dataset.g = 'bg';
       });
 
-      inv.addEventListener('click', (e) => {
-        e.preventDefault();
-        world.invert();
-        cursor.flush();
+      pxlInv.on('click', () => {
+        pxl.invert();
+        pxlCursor.flush();
         pushState();
       });
 
-      mrh.addEventListener('click', (e) => {
-        e.preventDefault();
-        world.mirror();
-        cursor.flush();
+      pxlMrh.on('click', () => {
+        pxl.mirror();
+        pxlCursor.flush();
         pushState();
       });
 
-      mrv.addEventListener('click', (e) => {
-        e.preventDefault();
-        world.reverse();
-        cursor.flush();
+      pxlMrv.on('click', () => {
+        pxl.reverse();
+        pxlCursor.flush();
         pushState();
       });
 
-      clr.addEventListener('click', (e) => {
-        e.preventDefault();
-        world.reset();
-        cursor.flush();
+      pxlClr.on('click', () => {
+        pxl.reset();
+        pxlCursor.flush();
         pushState();
       });
 
-      txt.addEventListener('click', (e) => {
-        e.preventDefault();
-        const path = world.compactPath;
+      pxlTxt.on('click', () => {
+        const path = pxl.compactPath;
         if (path !== null) window.location.href = `${path}.txt`;
       });
 
-      svg.addEventListener('click', (e) => {
-        e.preventDefault();
-        const path = world.compactPath;
+      pxlSvg.on('click', () => {
+        const path = pxl.compactPath;
         if (path === null) return;
-        window.location.href = `${path}.svg?fg=${cursor.fg.pxl}&bg=${cursor.bg.pxl}`;
+        window.location.href = `${path}.svg?fg=${pxlCursor.fg.pxl}&bg=${pxlCursor.bg.pxl}`;
       });
 
-      png.addEventListener('click', (e) => {
-        e.preventDefault();
-        const path = world.compactPath;
+      pxlPng.on('click', () => {
+        const path = pxl.compactPath;
         if (path === null) return;
-        window.location.href = `${path}.png?fg=${cursor.fg.pxl}&bg=${cursor.bg.pxl}`;
+        window.location.href = `${path}.png?fg=${pxlCursor.fg.pxl}&bg=${pxlCursor.bg.pxl}`;
       });
+
+      clrMns.on('click', () => clrPicker.zoomOut());
+      clrPls.on('click', () => clrPicker.zoomIn());
+      clrLgt.on('click', () => clrPicker.lighten());
+      clrDrk.on('click', () => clrPicker.darken());
+      clrCls.on('click', () => clr.hidden = true);
 
       window.addEventListener('popstate', (e) => {
         e.preventDefault();
@@ -651,32 +797,31 @@
       });
 
       window.addEventListener('resize', () => {
-        canvas.resize(window.innerWidth, window.innerHeight);
-        cursor.flush();
+        pxlCanvas.resize(window.innerWidth, window.innerHeight);
+        pxlCursor.flush();
       });
 
       window.addEventListener('keydown', (e) => {
         switch (e.key) {
           case 'ArrowDown':
             e.preventDefault();
-            if(cursor.mvDown(e.shiftKey)) pushState();
+            pxlCursor.mvDown(e.shiftKey);
             return;
           case 'ArrowUp':
             e.preventDefault();
-            if(cursor.mvUp(e.shiftKey)) pushState();
+            pxlCursor.mvUp(e.shiftKey);
             return;
           case 'ArrowRight':
             e.preventDefault();
-            if(cursor.mvRight(e.shiftKey)) pushState();
+            pxlCursor.mvRight(e.shiftKey);
             return;
           case 'ArrowLeft':
             e.preventDefault();
-            if(cursor.mvLeft(e.shiftKey)) pushState();
+            pxlCursor.mvLeft(e.shiftKey);
             return;
           case 'Shift':
             e.preventDefault();
-            cursor.draw();
-            pushState();
+            pxlCursor.draw();
             return;
         }
 
@@ -685,46 +830,46 @@
         switch (e.key) {
           case '-':
             e.preventDefault();
-            canvas.zoomOut();
-            cursor.flush();
+            pxlCanvas.zoomOut();
+            pxlCursor.flush();
             return;
           case '+':
             e.preventDefault();
-            canvas.zoomIn();
-            cursor.flush();
+            pxlCanvas.zoomIn();
+            pxlCursor.flush();
             return;
           case '.':
             e.preventDefault();
-            world.mirror();
-            cursor.flush();
+            pxl.mirror();
+            pxlCursor.flush();
             pushState();
             return;
           case ',':
             e.preventDefault();
-            world.reverse();
-            cursor.flush();
+            pxl.reverse();
+            pxlCursor.flush();
             pushState();
             return;
           case '0':
             e.preventDefault();
-            canvas.resize(window.innerWidth, window.innerHeight);
-            cursor.flush();
+            pxlCanvas.resize(window.innerWidth, window.innerHeight);
+            pxlCursor.flush();
             return;
           case 'i':
             e.preventDefault();
-            world.invert();
-            cursor.flush();
+            pxl.invert();
+            pxlCursor.flush();
             pushState();
             return;
           case 'q':
             e.preventDefault();
-            world.reset();
-            cursor.flush();
+            pxl.reset();
+            pxlCursor.flush();
             pushState();
             return;
           case 'Enter':
             e.preventDefault();
-            window.location.href = world.compactPath;
+            window.location.href = pxl.compactPath;
             return;
           case 'z':
             e.preventDefault();

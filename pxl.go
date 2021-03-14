@@ -225,9 +225,9 @@ func encodeTxt(w io.Writer, pxl *pxl) error {
 	for row := 0; row < pxl.Rows(); row++ {
 		for col := 0; col < pxl.Cols(); col++ {
 			if pxl.Get(col, row) {
-				buf[col] = bc
-			} else {
 				buf[col] = fc
+			} else {
+				buf[col] = bc
 			}
 		}
 		if _, err := w.Write([]byte(string(buf))); err != nil {

@@ -869,7 +869,9 @@
             return;
           case 'Enter':
             e.preventDefault();
-            window.location.href = pxl.compactPath;
+            const path = pxl.compactPath;
+            if (path === null) return;
+            window.location.href = `${path}.png?fg=${pxlCursor.fg.pxl}&bg=${pxlCursor.bg.pxl}`;
             return;
           case 'z':
             e.preventDefault();

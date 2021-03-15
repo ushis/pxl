@@ -245,21 +245,24 @@
           this.el = el;
           this.bits = bits;
           this.ctx = this.el.getContext('2d');
-          this.eventManager = new EventManager();
+          this.em = new EventManager();
 
           this.el.addEventListener('mousemove', (e) => {
             const [x, y] = this._coords(e.pageX, e.pageY);
-            this.eventManager.emit('move', x, y, e.buttons === 1 || e.shiftKey);
+            this.em.emit('move', x, y, e.buttons === 1 || e.shiftKey);
+            e.preventDefault();
           });
 
           this.el.addEventListener('mousedown', (e) => {
             if (e.button !== 0) return;
-            this.eventManager.emit('down', ...this._coords(e.pageX, e.pageY));
+            this.em.emit('down', ...this._coords(e.pageX, e.pageY));
+            e.preventDefault();
           });
 
           this.el.addEventListener('click', (e) => {
             if (e.button !== 0) return;
-            this.eventManager.emit('click', ...this._coords(e.pageX, e.pageY));
+            this.em.emit('click', ...this._coords(e.pageX, e.pageY));
+            e.preventDefault();
           });
 
           this.resize(width, height);
@@ -303,7 +306,7 @@
         }
 
         on(name, handler) {
-          this.eventManager.on(name, handler);
+          this.em.on(name, handler);
         }
 
         _coords(pageX, pageY) {
@@ -351,96 +354,109 @@
             Math.floor((this.a + other.a) / 2),
           );
         }
-      }
+      };
 
-      class Cursor {
+      class Pen {
         constructor(pxl, canvas, colors) {
           this.pxl = pxl;
           this.canvas = canvas;
           this.fg = colors.fg;
           this.bg = colors.bg;
-          this.x = Math.trunc(bits / 2);
-          this.y = Math.trunc(bits / 2);
-          this.blinker = null;
-          this.eventManager = new EventManager();
+          this.em = new EventManager();
 
-          this.canvas.on('move', (x, y, draw) => this.mvTo(x, y, draw));
-          this.canvas.on('down', (x, y) => this.draw());
+          this.canvas.on('move', (...args) => this.em.emit('move', ...args));
+          this.canvas.on('down', (...args) => this.em.emit('down', ...args));
+        }
+
+        get bits() {
+          return this.canvas.bits;
+        }
+
+        on(name, handler) {
+          this.em.on(name, handler);
+        }
+
+        reset(x, y) {
+          this.canvas.draw(x, y, this.pxl.get(x, y) ? this.fg.css : this.bg.css);
+        }
+
+        hover(x, y) {
+          this.canvas.draw(x, y, this.fg.center(this.bg).css);
+        }
+
+        draw(x, y) {
+          this.canvas.draw(x, y, this.pxl.toggle(x, y) ? this.fg.css : this.bg.css);
+          this.em.emit('draw');
+        }
+
+        async flush() {
+          for (let x = 0; x < this.pxl.bits; x++) {
+            for (let y = 0; y < this.pxl.bits; y++) {
+              this.reset(x, y);
+            }
+          }
+        }
+      };
+
+      class Cursor {
+        constructor(pen) {
+          this.pen = pen;
+          this.x = Math.trunc(this.pen.bits / 2);
+          this.y = Math.trunc(this.pen.bits / 2);
+          this.blinker = null;
+
+          this.pen.on('move', (x, y, down) => this.mvTo(x, y, down));
+          this.pen.on('down', () => this.down());
 
           this._blink(this.x, this.y);
         }
 
-        mvTo(x, y, draw = false) {
+        mvTo(x, y, down = false) {
           // Check bounds.
-          if (x < 0 || this.pxl.bits <= x || y < 0 || this.pxl.bits <= y) return false;
+          if (x < 0 || this.pen.bits <= x || y < 0 || this.pen.bits <= y) return false;
           // Do nothing if the cursor didn't move.
           if (x === this.x && y === this.y) return false;
           // Reset prev cell.
-          this._reset(this.x, this.y);
+          this.pen.reset(this.x, this.y);
           // Move to new location.
           this.x = x;
           this.y = y;
           // Reset blinker.
           this._blink(this.x, this.y)
           // Are we done?
-          if (!draw) return false;
+          if (!down) return false;
           // Draw if cursor is down.
-          this.draw();
+          this.pen.draw(this.x, this.y);
           return true;
         }
 
-        mvUp(draw = false) {
-          return this.mvTo(this.x, this.y - 1, draw);
+        mvUp(down = false) {
+          return this.mvTo(this.x, this.y - 1, down);
         }
 
-        mvDown(draw = false) {
-          return this.mvTo(this.x, this.y + 1, draw);
+        mvDown(down = false) {
+          return this.mvTo(this.x, this.y + 1, down);
         }
 
-        mvLeft(draw = false) {
-          return this.mvTo(this.x - 1, this.y, draw);
+        mvLeft(down = false) {
+          return this.mvTo(this.x - 1, this.y, down);
         }
 
-        mvRight(draw = false) {
-          return this.mvTo(this.x + 1, this.y, draw);
+        mvRight(down = false) {
+          return this.mvTo(this.x + 1, this.y, down);
         }
 
-        draw() {
-          this._toggle(this.x, this.y);
-          this.eventManager.emit('draw', this.x, this.y);
-        }
-
-        async flush() {
-          for (let x = 0; x < this.pxl.bits; x++) {
-            for (let y = 0; y < this.pxl.bits; y++) {
-              this._reset(x, y);
-            }
-          }
-        }
-
-        on(name, handler) {
-          this.eventManager.on(name, handler);
-        }
-
-        get bl() {
-          return this.fg.center(this.bg);
-        }
-
-        _reset(x, y) {
-          this.canvas.draw(x, y, this.pxl.get(x, y) ? this.fg.css : this.bg.css);
-        }
-
-        _toggle(x, y) {
-          this.canvas.draw(x, y, this.pxl.toggle(x, y) ? this.fg.css : this.bg.css);
+        down() {
+          this.pen.draw(this.x, this.y);
         }
 
         _blink(x, y) {
-          let blink = false;
-          this.canvas.draw(x, y, this.bl.css);
           window.clearInterval(this.blinker);
+          this.pen.hover(x, y);
+          let blink = false;
 
           this.blinker = window.setInterval(() => {
-            blink ? this.canvas.draw(x, y, this.bl.css) : this._reset(x, y);
+            blink ? this.pen.hover(x, y) : this.pen.reset(x, y);
             blink = !blink;
           }, 500);
         }
@@ -454,13 +470,20 @@
         constructor(canvas, lightness = 0.5) {
           this.canvas = canvas;
           this.lightness = lightness;
-          this.eventManager = new EventManager();
+          this.em = new EventManager();
+
+          this.canvas.on('move', (...args) => this.em.emit('move', ...args));
+          this.canvas.on('down', (...args) => this.em.emit('down', ...args));
 
           this.canvas.on('click', (x, y) => {
-            this.eventManager.emit('pick', new Color(...this.canvas.rgba(x, y)));
+            this.em.emit('pick', new Color(...this.canvas.rgba(x, y)));
           });
 
           this._flush();
+        }
+
+        get bits() {
+          return this.canvas.bits;
         }
 
         lighten() {
@@ -485,15 +508,26 @@
           this._flush();
         }
 
+        reset(x, y) {
+          const [h, s, l] = this._hsl(x, y);
+          this.canvas.draw(x, y, `hsl(${h*360}, ${s*100}%, ${l*100}%)`);
+        }
+
+        hover(x, y) {
+          const [h, s, l] = this._hsl(x, y);
+          this.canvas.draw(x, y, `hsl(${h*360}, ${s*100}%, ${(l/2)*100}%)`);
+        }
+
+        draw() {} // Pen interface
+
         on(name, handler) {
-          this.eventManager.on(name, handler);
+          this.em.on(name, handler);
         }
 
         async _flush() {
           for (let x = 0; x < this.canvas.bits; x++) {
             for (let y = 0; y < this.canvas.bits; y++) {
-              const [h, s, l] = this._hsl(x, y);
-              this.canvas.draw(x, y, `hsl(${h*360}, ${s*100}%, ${l*100}%)`);
+              this.reset(x, y);
             }
           }
         }
@@ -518,6 +552,7 @@
         _angle(x, y) {
           const [pX, pY] = this._translate(x, y);
           const atan = Math.atan(pY / pX);
+          if (pX == 0 && pY == 0) return 0;
           if (pX >= 0 && pY >= 0) return atan;
           if (pX < 0) return atan + Math.PI;
           return atan + (2 * Math.PI);
@@ -535,16 +570,16 @@
         constructor(el) {
           this.el = el;
           this.img = el.querySelector('img');
-          this.eventManager = new EventManager();
+          this.em = new EventManager();
 
           this.el.addEventListener('click', (e) => {
             e.preventDefault();
-            this.eventManager.emit('click');
+            this.em.emit('click');
           });
         }
 
         on(name, handler) {
-          this.eventManager.on(name, handler);
+          this.em.on(name, handler);
         }
 
         set fg(fg) {
@@ -657,12 +692,14 @@
 
       const pxl = new Pxl(bits);
       const pxlCanvas = new Canvas(pxlCvs, bits, window.innerWidth, window.innerHeight);
-      const pxlCursor = new Cursor(pxl, pxlCanvas, {bg, fg});
-      const clrCanvas = new Canvas(clrCvs, bits, window.innerWidth, window.innerHeight)
+      const pxlPen = new Pen(pxl, pxlCanvas, {bg, fg});
+      const pxlCursor = new Cursor(pxlPen);
+      const clrCanvas = new Canvas(clrCvs, bits, window.innerWidth, window.innerHeight);
       const clrPicker = new ColorPicker(clrCanvas);
+      const clrCursor = new Cursor(clrPicker);
 
       const pushState = () => {
-        const path = `${pxl.path}?fg=${pxlCursor.fg.pxl}&bg=${pxlCursor.bg.pxl}`;
+        const path = `${pxl.path}?fg=${pxlPen.fg.pxl}&bg=${pxlPen.bg.pxl}`;
         window.history.pushState(null, document.title, `/#${path}`);
       };
 
@@ -671,21 +708,21 @@
 
         if (hash === '') {
           pxl.reset(defaultRows);
-          pxlCursor.fg = fg;
-          pxlCursor.bg = bg;
+          pxlPen.fg = fg;
+          pxlPen.bg = bg;
         } else {
           const url = new URL(hash, window.location.href);
           const fgPrm = url.searchParams.get('fg');
           const bgPrm = url.searchParams.get('bg');
           pxl.resetPath(url.pathname);
-          pxlCursor.fg = (fgPrm === null) ? fg : Color.decode(fgPrm);
-          pxlCursor.bg = (bgPrm === null) ? bg : Color.decode(bgPrm);
+          pxlPen.fg = (fgPrm === null) ? fg : Color.decode(fgPrm);
+          pxlPen.bg = (bgPrm === null) ? bg : Color.decode(bgPrm);
         }
-        pxlCursor.flush();
+        pxlPen.flush();
 
         buttons.forEach((btn) => {
-          btn.fg = pxlCursor.fg;
-          btn.bg = pxlCursor.bg;
+          btn.fg = pxlPen.fg;
+          btn.bg = pxlPen.bg;
         });
 
         clr.hidden = true;
@@ -693,17 +730,17 @@
 
       popState();
 
-      pxlCursor.on('draw', () => pushState());
+      pxlPen.on('draw', () => pushState());
 
       clrPicker.on('pick', (color) => {
         if (clrFrm.dataset.g === 'fg') {
-          pxlCursor.fg = color;
+          pxlPen.fg = color;
           buttons.forEach((btn) => btn.fg = color);
         } else {
-          pxlCursor.bg = color;
+          pxlPen.bg = color;
           buttons.forEach((btn) => btn.bg = color);
         }
-        pxlCursor.flush();
+        pxlPen.flush();
         pushState();
         clrFrm.hidden = true;
       });
@@ -718,12 +755,12 @@
 
       pxlMns.on('click', () => {
         pxlCanvas.zoomOut();
-        pxlCursor.flush();
+        pxlPen.flush();
       });
 
       pxlPls.on('click', () => {
         pxlCanvas.zoomIn();
-        pxlCursor.flush();
+        pxlPen.flush();
       });
 
       pxlPrv.on('click', () => {
@@ -746,25 +783,25 @@
 
       pxlInv.on('click', () => {
         pxl.invert();
-        pxlCursor.flush();
+        pxlPen.flush();
         pushState();
       });
 
       pxlMrh.on('click', () => {
         pxl.mirror();
-        pxlCursor.flush();
+        pxlPen.flush();
         pushState();
       });
 
       pxlMrv.on('click', () => {
         pxl.reverse();
-        pxlCursor.flush();
+        pxlPen.flush();
         pushState();
       });
 
       pxlClr.on('click', () => {
         pxl.reset();
-        pxlCursor.flush();
+        pxlPen.flush();
         pushState();
       });
 
@@ -776,13 +813,13 @@
       pxlSvg.on('click', () => {
         const path = pxl.compactPath;
         if (path === null) return;
-        window.location.href = `${path}.svg?fg=${pxlCursor.fg.pxl}&bg=${pxlCursor.bg.pxl}`;
+        window.location.href = `${path}.svg?fg=${pxlPen.fg.pxl}&bg=${pxlPen.bg.pxl}`;
       });
 
       pxlPng.on('click', () => {
         const path = pxl.compactPath;
         if (path === null) return;
-        window.location.href = `${path}.png?fg=${pxlCursor.fg.pxl}&bg=${pxlCursor.bg.pxl}`;
+        window.location.href = `${path}.png?fg=${pxlPen.fg.pxl}&bg=${pxlPen.bg.pxl}`;
       });
 
       clrMns.on('click', () => clrPicker.zoomOut());
@@ -798,7 +835,7 @@
 
       window.addEventListener('resize', () => {
         pxlCanvas.resize(window.innerWidth, window.innerHeight);
-        pxlCursor.flush();
+        pxlPen.flush();
       });
 
       window.addEventListener('keydown', (e) => {
@@ -821,7 +858,7 @@
             return;
           case 'Shift':
             e.preventDefault();
-            pxlCursor.draw();
+            pxlCursor.down();
             return;
         }
 
@@ -831,47 +868,47 @@
           case '-':
             e.preventDefault();
             pxlCanvas.zoomOut();
-            pxlCursor.flush();
+            pxlPen.flush();
             return;
           case '+':
             e.preventDefault();
             pxlCanvas.zoomIn();
-            pxlCursor.flush();
+            pxlPen.flush();
             return;
           case '.':
             e.preventDefault();
             pxl.mirror();
-            pxlCursor.flush();
+            pxlPen.flush();
             pushState();
             return;
           case ',':
             e.preventDefault();
             pxl.reverse();
-            pxlCursor.flush();
+            pxlPen.flush();
             pushState();
             return;
           case '0':
             e.preventDefault();
             pxlCanvas.resize(window.innerWidth, window.innerHeight);
-            pxlCursor.flush();
+            pxlPen.flush();
             return;
           case 'i':
             e.preventDefault();
             pxl.invert();
-            pxlCursor.flush();
+            pxlPen.flush();
             pushState();
             return;
           case 'q':
             e.preventDefault();
             pxl.reset();
-            pxlCursor.flush();
+            pxlPen.flush();
             pushState();
             return;
           case 'Enter':
             e.preventDefault();
             const path = pxl.compactPath;
             if (path === null) return;
-            window.location.href = `${path}.png?fg=${pxlCursor.fg.pxl}&bg=${pxlCursor.bg.pxl}`;
+            window.location.href = `${path}.png?fg=${pxlPen.fg.pxl}&bg=${pxlPen.bg.pxl}`;
             return;
           case 'z':
             e.preventDefault();

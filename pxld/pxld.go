@@ -1,0 +1,89 @@
+package main
+
+import (
+	_ "embed"
+	"flag"
+	"net/http"
+	"path"
+
+	"github.com/ushis/pxl"
+)
+
+var devMode bool
+var listenAddr string
+
+func init() {
+	flag.BoolVar(&devMode, "dev", false, "development mode")
+	flag.StringVar(&listenAddr, "listen", ":9876", "listen address")
+}
+
+func main() {
+	flag.Parse()
+	http.HandleFunc("/", serve)
+	http.ListenAndServe(listenAddr, nil)
+}
+
+const (
+	maxCols   = 64
+	maxRows   = 64
+	maxWidth  = 1024
+	maxHeight = 1024
+)
+
+//go:embed index.html
+var indexHTML []byte
+
+func serve(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/" {
+		if devMode {
+			http.ServeFile(w, r, "./pxld/index.html")
+		} else {
+			w.Header().Add("Content-Type", "text/html; charset=utf-8")
+			w.Write(indexHTML)
+		}
+		return
+	}
+	ext := path.Ext(r.URL.Path)
+	pth := r.URL.Path[:len(r.URL.Path)-len(ext)]
+	p, err := pxl.NewFromPath(pth)
+
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if p.Cols() == 0 || p.Cols() > maxCols || p.Rows() == 0 || p.Rows() > maxRows {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	opts, err := pxl.DecodeEncoderOptions(r.URL.Query())
+
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	scaleX := maxWidth / p.Cols()
+	scaleY := maxHeight / p.Rows()
+
+	if scaleX < scaleY {
+		opts.Scale = scaleX
+	} else {
+		opts.Scale = scaleY
+	}
+	switch ext {
+	case "", ".png":
+		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
+		w.Header().Add("Content-Type", "image/png")
+		pxl.NewPngEncoder(w, opts).Encode(p)
+	case ".txt":
+		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
+		w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+		pxl.NewTxtEncoder(w).Encode(p)
+	case ".svg":
+		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
+		w.Header().Add("Content-Type", "image/svg+xml")
+		pxl.NewSvgEncoder(w, opts).Encode(p)
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+}

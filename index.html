@@ -476,7 +476,9 @@
           this.canvas.on('down', (...args) => this.em.emit('down', ...args));
 
           this.canvas.on('click', (x, y) => {
-            this.em.emit('pick', new Color(...this.canvas.rgba(x, y)));
+            this.reset(x, y);
+            const clr = new Color(...this.canvas.rgba(x, y));
+            this.em.emit('pick', clr);
           });
 
           this._flush();

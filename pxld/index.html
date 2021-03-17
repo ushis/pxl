@@ -537,7 +537,7 @@
         _hsl(x, y) {
           const [r, a] = this._polarCoords(x, y);
           const h = a / (2 * Math.PI);
-          const s = r / this._radius(this.canvas.bits, this.canvas.bits);
+          const s = r / (this.canvas.bits / 2);
           const l = this.lightness;
           return [h, s, l];
         }

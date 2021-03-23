@@ -2,6 +2,7 @@ package pxl
 
 import (
 	"encoding/xml"
+	"fmt"
 	"image/color"
 	"io"
 	"strconv"
@@ -21,8 +22,14 @@ type svg struct {
 	Xmlns   string   `xml:"xmlns,attr"`
 	Width   string   `xml:"width,attr"`
 	Height  string   `xml:"height,attr"`
+	Style   svgStyle
 	Bg      svgRect
 	Fg      svgGroup
+}
+
+type svgStyle struct {
+	XMLName xml.Name `xml:"style"`
+	CSS     string   `xml:",innerxml"`
 }
 
 type svgRect struct {
@@ -31,14 +38,25 @@ type svgRect struct {
 	Y       string   `xml:"y,attr"`
 	Width   string   `xml:"width,attr"`
 	Height  string   `xml:"height,attr"`
-	Fill    string   `xml:"fill,attr,omitempty"`
+	Class   string   `xml:"class,attr,omitempty"`
 }
 
 type svgGroup struct {
 	XMLName xml.Name `xml:"g"`
-	Fill    string   `xml:"fill,attr,omitempty"`
+	Class   string   `xml:"class,attr,omitempty"`
 	Childs  []svgRect
 }
+
+const staticSvgCSS = `
+.bg { fill: %[1]s }
+.fg { fill: %[2]s }
+`
+
+const animatedSvgCSS = `
+@keyframes tick { 0%% { fill: %[1]s } 100%% { fill: %[2]s } }
+.bg { animation: tick %[3]fs steps(2, jump-none) infinite }
+.fg { animation: tick %[3]fs steps(2, jump-none) infinite reverse }
+`
 
 func (enc SvgEncoder) Encode(pxl Pxl) error {
 	bgr := encodeSvgColor(enc.opts.Bg)
@@ -47,8 +65,12 @@ func (enc SvgEncoder) Encode(pxl Pxl) error {
 		Xmlns:  "http://www.w3.org/2000/svg",
 		Width:  strconv.Itoa(pxl.Cols() * enc.opts.Scale),
 		Height: strconv.Itoa(pxl.Rows() * enc.opts.Scale),
-		Bg:     svgRect{X: "0", Y: "0", Width: "100%", Height: "100%", Fill: bgr},
-		Fg:     svgGroup{Fill: fgr},
+		Style:  svgStyle{CSS: fmt.Sprintf(staticSvgCSS, bgr, fgr)},
+		Bg:     svgRect{X: "0", Y: "0", Width: "100%", Height: "100%", Class: "bg"},
+		Fg:     svgGroup{Class: "fg"},
+	}
+	if enc.opts.Fps > 0 {
+		svg.Style.CSS = fmt.Sprintf(animatedSvgCSS, bgr, fgr, 1.0/float64(enc.opts.Fps))
 	}
 	for row := 0; row < pxl.Rows(); row++ {
 		for col := 0; col < pxl.Cols(); col++ {

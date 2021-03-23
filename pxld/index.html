@@ -99,6 +99,9 @@
         <button id="pxl-png" title="PNG (Ctrl + Enter)">
           <img src="/262143/131073/193725/136613/186301/169605/193669/131073/262143.svg"/>
         </button>
+        <button id="pxl-dnc" title="Do Not Click!">
+          <img src="/511/257/313/357/341/333/313/257/511.svg"/>
+        </button>
       </div>
     </div>
     <div id="clr" class="frame" hidden>
@@ -658,6 +661,7 @@
       const pxlTxt = new Button(document.getElementById('pxl-txt'));
       const pxlSvg = new Button(document.getElementById('pxl-svg'));
       const pxlPng = new Button(document.getElementById('pxl-png'));
+      const pxlDnc = new Button(document.getElementById('pxl-dnc'));
       const clrMns = new Button(document.getElementById('clr-mns'));
       const clrPls = new Button(document.getElementById('clr-pls'));
       const clrDrk = new Button(document.getElementById('clr-drk'));
@@ -679,6 +683,7 @@
         pxlTxt,
         pxlSvg,
         pxlPng,
+        pxlDnc,
         clrMns,
         clrPls,
         clrDrk,
@@ -822,6 +827,12 @@
         const path = pxl.compactPath;
         if (path === null) return;
         window.location.href = `${path}.png?fg=${pxlPen.fg.pxl}&bg=${pxlPen.bg.pxl}`;
+      });
+
+      pxlDnc.on('click', () => {
+        const path = pxl.compactPath;
+        if (path === null) return;
+        window.location.href = `${path}.gif?fg=${pxlPen.fg.pxl}&bg=${pxlPen.bg.pxl}&fps=10`;
       });
 
       clrMns.on('click', () => clrPicker.zoomOut());

@@ -70,6 +70,10 @@ func serve(w http.ResponseWriter, r *http.Request) {
 		opts.Scale = scaleY
 	}
 	switch ext {
+	case ".gif":
+		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
+		w.Header().Add("Content-Type", "image/gif")
+		pxl.NewGifEncoder(w, opts).Encode(p)
 	case "", ".png":
 		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
 		w.Header().Add("Content-Type", "image/png")

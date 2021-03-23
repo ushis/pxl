@@ -1,6 +1,7 @@
 package pxl
 
 import (
+	"errors"
 	"image/color"
 	"net/url"
 	"strconv"
@@ -9,12 +10,14 @@ import (
 type EncoderOptions struct {
 	Fg    color.NRGBA
 	Bg    color.NRGBA
+	Fps   int
 	Scale int
 }
 
 var defaultEncoderOptions = EncoderOptions{
 	Fg:    color.NRGBA{232, 52, 143, 255},
 	Bg:    color.NRGBA{0, 0, 0, 255},
+	Fps:   0,
 	Scale: 1,
 }
 
@@ -39,6 +42,17 @@ func DecodeEncoderOptions(params url.Values) (EncoderOptions, error) {
 			return opts, err
 		}
 		opts.Bg = clr
+	}
+	if str := params.Get("fps"); str != "" {
+		fps, err := strconv.ParseUint(str, 10, 8)
+
+		if err != nil {
+			return opts, err
+		}
+		if fps > 100 {
+			return opts, errors.New("fps out of range")
+		}
+		opts.Fps = int(fps)
 	}
 	if str := params.Get("scale"); str != "" {
 		scale, err := strconv.ParseUint(str, 10, 32)

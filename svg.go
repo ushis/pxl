@@ -5,16 +5,8 @@ import (
 	"image/color"
 	"io"
 	"strconv"
+	"strings"
 )
-
-type SvgEncoder struct {
-	w    io.Writer
-	opts EncoderOptions
-}
-
-func NewSvgEncoder(w io.Writer, opts EncoderOptions) SvgEncoder {
-	return SvgEncoder{w, opts}
-}
 
 type svg struct {
 	XMLName xml.Name `xml:"svg"`
@@ -49,51 +41,50 @@ type svgRect struct {
 	Height  string   `xml:"height,attr"`
 }
 
-func (enc SvgEncoder) Encode(pxl Pxl) error {
-	bg, bgOpacity := encodeSvgColor(enc.opts.Bg)
-	fg, fgOpacity := encodeSvgColor(enc.opts.Fg)
+func EncodeSvg(w io.Writer, pxl Pxl, opts *EncodingOptions) error {
+	bg := &svgGroup{}
+	fg := &svgGroup{}
+	bg.Fill, bg.FillOpacity = encodeSvgColor(opts.Bg)
+	fg.Fill, fg.FillOpacity = encodeSvgColor(opts.Fg)
 
-	svg := svg{
-		Xmlns:  "http://www.w3.org/2000/svg",
-		Width:  strconv.Itoa(pxl.Cols() * enc.opts.Scale),
-		Height: strconv.Itoa(pxl.Rows() * enc.opts.Scale),
-		Childs: []*svgGroup{
-			{Fill: bg, FillOpacity: bgOpacity},
-			{Fill: fg, FillOpacity: fgOpacity},
-		},
-	}
-	if enc.opts.Fps > 0 {
-		svg.Childs[0].Animation = encodeSvgAnimation(bg, fg, enc.opts.Fps)
-		svg.Childs[1].Animation = encodeSvgAnimation(fg, bg, enc.opts.Fps)
+	if opts.Fps > 0 {
+		bg.Animation = encodeSvgAnimation("fill", []string{bg.Fill, fg.Fill}, opts.Fps)
+		fg.Animation = encodeSvgAnimation("fill", []string{fg.Fill, bg.Fill}, opts.Fps)
 	}
 	for row := 0; row < pxl.Rows(); row++ {
 		for col := 0; col < pxl.Cols(); col++ {
 			rect := &svgRect{
-				X:      strconv.Itoa(col * enc.opts.Scale),
-				Y:      strconv.Itoa(row * enc.opts.Scale),
-				Width:  strconv.Itoa(enc.opts.Scale),
-				Height: strconv.Itoa(enc.opts.Scale),
+				X:      strconv.Itoa(col * opts.Scale),
+				Y:      strconv.Itoa(row * opts.Scale),
+				Width:  strconv.Itoa(opts.Scale),
+				Height: strconv.Itoa(opts.Scale),
 			}
 			if pxl.Get(col, row) {
-				svg.Childs[1].Childs = append(svg.Childs[1].Childs, rect)
+				fg.Childs = append(fg.Childs, rect)
 			} else {
-				svg.Childs[0].Childs = append(svg.Childs[0].Childs, rect)
+				bg.Childs = append(bg.Childs, rect)
 			}
 		}
 	}
-	if _, err := enc.w.Write([]byte(xml.Header)); err != nil {
+	svg := &svg{
+		Xmlns:  "http://www.w3.org/2000/svg",
+		Width:  strconv.Itoa(pxl.Cols() * opts.Scale),
+		Height: strconv.Itoa(pxl.Rows() * opts.Scale),
+		Childs: []*svgGroup{bg, fg},
+	}
+	if _, err := w.Write([]byte(xml.Header)); err != nil {
 		return err
 	}
-	return xml.NewEncoder(enc.w).Encode(svg)
+	return xml.NewEncoder(w).Encode(svg)
 }
 
-func encodeSvgAnimation(fillA, fillB string, fps int) *svgAnimate {
+func encodeSvgAnimation(attrName string, values []string, fps int) *svgAnimate {
 	return &svgAnimate{
-		AttributeName: "fill",
+		AttributeName: attrName,
 		CalcMode:      "discrete",
 		Dur:           strconv.FormatFloat(1.0/float64(fps), 'f', 4, 64),
 		RepeatCount:   "indefinite",
-		Values:        fillA + ";" + fillB,
+		Values:        strings.Join(values, ";"),
 	}
 }
 

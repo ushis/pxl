@@ -7,25 +7,25 @@ import (
 	"strconv"
 )
 
-type EncoderOptions struct {
+type EncodingOptions struct {
 	Fg    color.NRGBA
 	Bg    color.NRGBA
 	Fps   int
 	Scale int
 }
 
-var defaultEncoderOptions = EncoderOptions{
+var defaultEncodingOptions = &EncodingOptions{
 	Fg:    color.NRGBA{232, 52, 143, 255},
 	Bg:    color.NRGBA{0, 0, 0, 255},
 	Fps:   0,
 	Scale: 1,
 }
 
-func DecodeEncoderOptions(params url.Values) (EncoderOptions, error) {
-	opts := EncoderOptions{
-		Fg:    defaultEncoderOptions.Fg,
-		Bg:    defaultEncoderOptions.Bg,
-		Scale: defaultEncoderOptions.Scale,
+func DecodeEncodingOptions(params url.Values) (*EncodingOptions, error) {
+	opts := &EncodingOptions{
+		Fg:    defaultEncodingOptions.Fg,
+		Bg:    defaultEncodingOptions.Bg,
+		Scale: defaultEncodingOptions.Scale,
 	}
 	if str := params.Get("fg"); str != "" {
 		clr, err := DecodeColor(str)

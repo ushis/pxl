@@ -55,7 +55,7 @@ func serve(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	opts, err := pxl.DecodeEncoderOptions(r.URL.Query())
+	opts, err := pxl.DecodeEncodingOptions(r.URL.Query())
 
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
@@ -73,19 +73,19 @@ func serve(w http.ResponseWriter, r *http.Request) {
 	case ".gif":
 		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
 		w.Header().Add("Content-Type", "image/gif")
-		pxl.NewGifEncoder(w, opts).Encode(p)
+		pxl.EncodeGif(w, p, opts)
 	case "", ".png":
 		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
 		w.Header().Add("Content-Type", "image/png")
-		pxl.NewPngEncoder(w, opts).Encode(p)
+		pxl.EncodePng(w, p, opts)
 	case ".txt":
 		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
 		w.Header().Add("Content-Type", "text/plain; charset=utf-8")
-		pxl.NewTxtEncoder(w).Encode(p)
+		pxl.EncodeTxt(w, p)
 	case ".svg":
 		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
 		w.Header().Add("Content-Type", "image/svg+xml")
-		pxl.NewSvgEncoder(w, opts).Encode(p)
+		pxl.EncodeSvg(w, p, opts)
 	default:
 		w.WriteHeader(http.StatusNotFound)
 		return

@@ -2,21 +2,13 @@ package pxl
 
 import "io"
 
-type TxtEncoder struct {
-	w io.Writer
-}
-
-func NewTxtEncoder(w io.Writer) TxtEncoder {
-	return TxtEncoder{w}
-}
-
 const (
 	bc = ' '
 	fc = '█'
 	lf = '\n'
 )
 
-func (enc TxtEncoder) Encode(pxl Pxl) error {
+func EncodeTxt(w io.Writer, pxl Pxl) error {
 	buf := make([]rune, pxl.Cols()+1)
 	buf[pxl.Cols()] = lf
 
@@ -28,7 +20,7 @@ func (enc TxtEncoder) Encode(pxl Pxl) error {
 				buf[col] = bc
 			}
 		}
-		if _, err := enc.w.Write([]byte(string(buf))); err != nil {
+		if _, err := w.Write([]byte(string(buf))); err != nil {
 			return err
 		}
 	}

@@ -2,7 +2,6 @@ package pxl
 
 import (
 	"encoding/xml"
-	"fmt"
 	"image/color"
 	"io"
 	"strconv"
@@ -22,14 +21,24 @@ type svg struct {
 	Xmlns   string   `xml:"xmlns,attr"`
 	Width   string   `xml:"width,attr"`
 	Height  string   `xml:"height,attr"`
-	Style   svgStyle
-	Bg      svgRect
-	Fg      svgGroup
+	Childs  []*svgGroup
 }
 
-type svgStyle struct {
-	XMLName xml.Name `xml:"style"`
-	CSS     string   `xml:",innerxml"`
+type svgGroup struct {
+	XMLName     xml.Name `xml:"g"`
+	Fill        string   `xml:"fill,attr"`
+	FillOpacity string   `xml:"fill-opacity,attr"`
+	Animation   *svgAnimate
+	Childs      []*svgRect
+}
+
+type svgAnimate struct {
+	XMLName       xml.Name `xml:"animate"`
+	AttributeName string   `xml:"attributeName,attr"`
+	CalcMode      string   `xml:"calcMode,attr"`
+	Dur           string   `xml:"dur,attr"`
+	RepeatCount   string   `xml:"repeatCount,attr"`
+	Values        string   `xml:"values,attr"`
 }
 
 type svgRect struct {
@@ -38,51 +47,38 @@ type svgRect struct {
 	Y       string   `xml:"y,attr"`
 	Width   string   `xml:"width,attr"`
 	Height  string   `xml:"height,attr"`
-	Class   string   `xml:"class,attr,omitempty"`
 }
-
-type svgGroup struct {
-	XMLName xml.Name `xml:"g"`
-	Class   string   `xml:"class,attr,omitempty"`
-	Childs  []svgRect
-}
-
-const staticSvgCSS = `
-.bg { fill: %[1]s }
-.fg { fill: %[2]s }
-`
-
-const animatedSvgCSS = `
-@keyframes tick { 0%% { fill: %[1]s } 100%% { fill: %[2]s } }
-.bg { animation: tick %[3]fs steps(2, jump-none) infinite }
-.fg { animation: tick %[3]fs steps(2, jump-none) infinite reverse }
-`
 
 func (enc SvgEncoder) Encode(pxl Pxl) error {
-	bgr := encodeSvgColor(enc.opts.Bg)
-	fgr := encodeSvgColor(enc.opts.Fg)
+	bg, bgOpacity := encodeSvgColor(enc.opts.Bg)
+	fg, fgOpacity := encodeSvgColor(enc.opts.Fg)
+
 	svg := svg{
 		Xmlns:  "http://www.w3.org/2000/svg",
 		Width:  strconv.Itoa(pxl.Cols() * enc.opts.Scale),
 		Height: strconv.Itoa(pxl.Rows() * enc.opts.Scale),
-		Style:  svgStyle{CSS: fmt.Sprintf(staticSvgCSS, bgr, fgr)},
-		Bg:     svgRect{X: "0", Y: "0", Width: "100%", Height: "100%", Class: "bg"},
-		Fg:     svgGroup{Class: "fg"},
+		Childs: []*svgGroup{
+			{Fill: bg, FillOpacity: bgOpacity},
+			{Fill: fg, FillOpacity: fgOpacity},
+		},
 	}
 	if enc.opts.Fps > 0 {
-		svg.Style.CSS = fmt.Sprintf(animatedSvgCSS, bgr, fgr, 1.0/float64(enc.opts.Fps))
+		svg.Childs[0].Animation = encodeSvgAnimation(bg, fg, enc.opts.Fps)
+		svg.Childs[1].Animation = encodeSvgAnimation(fg, bg, enc.opts.Fps)
 	}
 	for row := 0; row < pxl.Rows(); row++ {
 		for col := 0; col < pxl.Cols(); col++ {
-			if !pxl.Get(col, row) {
-				continue
-			}
-			svg.Fg.Childs = append(svg.Fg.Childs, svgRect{
+			rect := &svgRect{
 				X:      strconv.Itoa(col * enc.opts.Scale),
 				Y:      strconv.Itoa(row * enc.opts.Scale),
 				Width:  strconv.Itoa(enc.opts.Scale),
 				Height: strconv.Itoa(enc.opts.Scale),
-			})
+			}
+			if pxl.Get(col, row) {
+				svg.Childs[1].Childs = append(svg.Childs[1].Childs, rect)
+			} else {
+				svg.Childs[0].Childs = append(svg.Childs[0].Childs, rect)
+			}
 		}
 	}
 	if _, err := enc.w.Write([]byte(xml.Header)); err != nil {
@@ -91,10 +87,20 @@ func (enc SvgEncoder) Encode(pxl Pxl) error {
 	return xml.NewEncoder(enc.w).Encode(svg)
 }
 
+func encodeSvgAnimation(fillA, fillB string, fps int) *svgAnimate {
+	return &svgAnimate{
+		AttributeName: "fill",
+		CalcMode:      "discrete",
+		Dur:           strconv.FormatFloat(1.0/float64(fps), 'f', 4, 64),
+		RepeatCount:   "indefinite",
+		Values:        fillA + ";" + fillB,
+	}
+}
+
 const hextable = "0123456789abcdef"
 
-func encodeSvgColor(clr color.NRGBA) string {
-	rgba := []byte{
+func encodeSvgColor(clr color.NRGBA) (string, string) {
+	rgb := []byte{
 		'#',
 		hextable[clr.R>>4],
 		hextable[clr.R&0x0f],
@@ -102,8 +108,6 @@ func encodeSvgColor(clr color.NRGBA) string {
 		hextable[clr.G&0x0f],
 		hextable[clr.B>>4],
 		hextable[clr.B&0x0f],
-		hextable[clr.A>>4],
-		hextable[clr.A&0x0f],
 	}
-	return string(rgba)
+	return string(rgb), strconv.FormatFloat(float64(clr.A)/0xff, 'f', 4, 64)
 }

@@ -2,22 +2,16 @@ package pxl
 
 import "io"
 
-const (
-	bc = ' '
-	fc = '█'
-	lf = '\n'
-)
-
-func EncodeTxt(w io.Writer, pxl Pxl) error {
+func EncodeTxt(w io.Writer, pxl Pxl, opts *EncodingOptions) error {
 	buf := make([]rune, pxl.Cols()+1)
-	buf[pxl.Cols()] = lf
+	buf[pxl.Cols()] = '\n'
 
 	for row := 0; row < pxl.Rows(); row++ {
 		for col := 0; col < pxl.Cols(); col++ {
 			if pxl.Get(col, row) {
-				buf[col] = fc
+				buf[col] = opts.Fc
 			} else {
-				buf[col] = bc
+				buf[col] = opts.Bc
 			}
 		}
 		if _, err := w.Write([]byte(string(buf))); err != nil {

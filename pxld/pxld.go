@@ -73,7 +73,7 @@ func serve(w http.ResponseWriter, r *http.Request) {
 	case ".txt":
 		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
 		w.Header().Add("Content-Type", "text/plain; charset=utf-8")
-		pxl.EncodeTxt(w, p)
+		pxl.EncodeTxt(w, p, opts)
 	case ".svg":
 		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
 		w.Header().Add("Content-Type", "image/svg+xml")

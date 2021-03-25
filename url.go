@@ -47,6 +47,8 @@ func decodeQuery(params url.Values) (*EncodingOptions, error) {
 	opts := &EncodingOptions{
 		Fg:    defaultEncodingOptions.Fg,
 		Bg:    defaultEncodingOptions.Bg,
+		Fc:    defaultEncodingOptions.Fc,
+		Bc:    defaultEncodingOptions.Bc,
 		Fps:   defaultEncodingOptions.Fps,
 		Scale: defaultEncodingOptions.Scale,
 	}
@@ -65,6 +67,18 @@ func decodeQuery(params url.Values) (*EncodingOptions, error) {
 			return opts, err
 		}
 		opts.Bg = clr
+	}
+	if str := params.Get("fc"); str != "" {
+		if len(str) != 1 {
+			return opts, errors.New("fc too long")
+		}
+		opts.Fc = []rune(str)[0]
+	}
+	if str := params.Get("bc"); str != "" {
+		if len(str) != 1 {
+			return opts, errors.New("bc too long")
+		}
+		opts.Bc = []rune(str)[0]
 	}
 	if str := params.Get("fps"); str != "" {
 		fps, err := strconv.ParseUint(str, 10, 8)

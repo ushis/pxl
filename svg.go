@@ -82,7 +82,7 @@ func encodeSvgAnimation(attrName string, values []string, fps int) *svgAnimate {
 	return &svgAnimate{
 		AttributeName: attrName,
 		CalcMode:      "discrete",
-		Dur:           strconv.FormatFloat(1.0/float64(fps), 'f', 4, 64),
+		Dur:           strconv.FormatFloat(float64(len(values))/float64(fps), 'f', 4, 64),
 		RepeatCount:   "indefinite",
 		Values:        strings.Join(values, ";"),
 	}

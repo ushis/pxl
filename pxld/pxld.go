@@ -43,21 +43,13 @@ func serve(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	ext := path.Ext(r.URL.Path)
-	pth := r.URL.Path[:len(r.URL.Path)-len(ext)]
-	p, err := pxl.NewFromPath(pth)
+	p, opts, err := pxl.DecodeURL(r.URL)
 
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	if p.Cols() == 0 || p.Cols() > maxCols || p.Rows() == 0 || p.Rows() > maxRows {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	opts, err := pxl.DecodeEncodingOptions(r.URL.Query())
-
-	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -69,7 +61,7 @@ func serve(w http.ResponseWriter, r *http.Request) {
 	} else {
 		opts.Scale = scaleY
 	}
-	switch ext {
+	switch path.Ext(r.URL.Path) {
 	case ".gif":
 		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
 		w.Header().Add("Content-Type", "image/gif")

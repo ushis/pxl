@@ -51,6 +51,7 @@ func EncodeSvg(w io.Writer, pxl Pxl, opts *EncodingOptions) error {
 		bg.Animation = encodeSvgAnimation("fill", []string{bg.Fill, fg.Fill}, opts.Fps)
 		fg.Animation = encodeSvgAnimation("fill", []string{fg.Fill, bg.Fill}, opts.Fps)
 	}
+
 	for row := 0; row < pxl.Rows(); row++ {
 		for col := 0; col < pxl.Cols(); col++ {
 			rect := &svgRect{
@@ -66,12 +67,14 @@ func EncodeSvg(w io.Writer, pxl Pxl, opts *EncodingOptions) error {
 			}
 		}
 	}
+
 	svg := &svg{
 		Xmlns:  "http://www.w3.org/2000/svg",
 		Width:  strconv.Itoa(pxl.Cols() * opts.Scale),
 		Height: strconv.Itoa(pxl.Rows() * opts.Scale),
 		Childs: []*svgGroup{bg, fg},
 	}
+
 	if _, err := w.Write([]byte(xml.Header)); err != nil {
 		return err
 	}

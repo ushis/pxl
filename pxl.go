@@ -1,34 +1,13 @@
 package pxl
 
 import (
-	"errors"
 	"math/bits"
-	"strconv"
-	"strings"
 )
 
 type Pxl []uint64
 
 func New(rows int) Pxl {
 	return make(Pxl, rows)
-}
-
-func NewFromPath(path string) (Pxl, error) {
-	if path == "" || path[0] != '/' {
-		return nil, errors.New("invalid path")
-	}
-	parts := strings.Split(path[1:], "/")
-	pxl := New(len(parts))
-
-	for y, part := range parts {
-		row, err := strconv.ParseUint(part, 10, 64)
-
-		if err != nil {
-			return nil, err
-		}
-		pxl.SetRow(y, row)
-	}
-	return pxl, nil
 }
 
 func (pxl Pxl) Get(x, y int) bool {

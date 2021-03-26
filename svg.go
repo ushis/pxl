@@ -35,6 +35,16 @@ type svgAnimate struct {
 }
 
 func EncodeSvg(w io.Writer, pxl Pxl, opts *EncodingOptions) error {
+	svg := &svg{
+		Xmlns:  "http://www.w3.org/2000/svg",
+		Width:  strconv.Itoa(pxl.Cols() * opts.Scale),
+		Height: strconv.Itoa(pxl.Rows() * opts.Scale),
+		Childs: encodeSvgPaths(pxl, opts),
+	}
+	return xml.NewEncoder(w).Encode(svg)
+}
+
+func encodeSvgPaths(pxl Pxl, opts *EncodingOptions) []*svgPath {
 	bg := &svgPath{}
 	fg := &svgPath{}
 	bg.D, fg.D = encodeSvgPathData(pxl, opts.Scale)
@@ -45,13 +55,7 @@ func EncodeSvg(w io.Writer, pxl Pxl, opts *EncodingOptions) error {
 		bg.Animation = encodeSvgAnimation("fill", []string{bg.Fill, fg.Fill}, opts.Fps)
 		fg.Animation = encodeSvgAnimation("fill", []string{fg.Fill, bg.Fill}, opts.Fps)
 	}
-	svg := &svg{
-		Xmlns:  "http://www.w3.org/2000/svg",
-		Width:  strconv.Itoa(pxl.Cols() * opts.Scale),
-		Height: strconv.Itoa(pxl.Rows() * opts.Scale),
-		Childs: []*svgPath{bg, fg},
-	}
-	return xml.NewEncoder(w).Encode(svg)
+	return []*svgPath{bg, fg}
 }
 
 func encodeSvgPathData(pxl Pxl, scale int) (string, string) {

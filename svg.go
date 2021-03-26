@@ -2,6 +2,7 @@ package pxl
 
 import (
 	"encoding/xml"
+	"fmt"
 	"image/color"
 	"io"
 	"strconv"
@@ -13,15 +14,15 @@ type svg struct {
 	Xmlns   string   `xml:"xmlns,attr"`
 	Width   string   `xml:"width,attr"`
 	Height  string   `xml:"height,attr"`
-	Childs  []*svgGroup
+	Childs  []*svgPath
 }
 
-type svgGroup struct {
-	XMLName     xml.Name `xml:"g"`
+type svgPath struct {
+	XMLName     xml.Name `xml:"path"`
+	D           string   `xml:"d,attr"`
 	Fill        string   `xml:"fill,attr"`
 	FillOpacity string   `xml:"fill-opacity,attr"`
 	Animation   *svgAnimate
-	Childs      []*svgRect
 }
 
 type svgAnimate struct {
@@ -33,17 +34,10 @@ type svgAnimate struct {
 	Values        string   `xml:"values,attr"`
 }
 
-type svgRect struct {
-	XMLName xml.Name `xml:"rect"`
-	X       string   `xml:"x,attr"`
-	Y       string   `xml:"y,attr"`
-	Width   string   `xml:"width,attr"`
-	Height  string   `xml:"height,attr"`
-}
-
 func EncodeSvg(w io.Writer, pxl Pxl, opts *EncodingOptions) error {
-	bg := &svgGroup{}
-	fg := &svgGroup{}
+	bg := &svgPath{}
+	fg := &svgPath{}
+	bg.D, fg.D = encodeSvgPathData(pxl, opts.Scale)
 	bg.Fill, bg.FillOpacity = encodeSvgColor(opts.Bg)
 	fg.Fill, fg.FillOpacity = encodeSvgColor(opts.Fg)
 
@@ -51,34 +45,31 @@ func EncodeSvg(w io.Writer, pxl Pxl, opts *EncodingOptions) error {
 		bg.Animation = encodeSvgAnimation("fill", []string{bg.Fill, fg.Fill}, opts.Fps)
 		fg.Animation = encodeSvgAnimation("fill", []string{fg.Fill, bg.Fill}, opts.Fps)
 	}
-
-	for row := 0; row < pxl.Rows(); row++ {
-		for col := 0; col < pxl.Cols(); col++ {
-			rect := &svgRect{
-				X:      strconv.Itoa(col * opts.Scale),
-				Y:      strconv.Itoa(row * opts.Scale),
-				Width:  strconv.Itoa(opts.Scale),
-				Height: strconv.Itoa(opts.Scale),
-			}
-			if pxl.Get(col, row) {
-				fg.Childs = append(fg.Childs, rect)
-			} else {
-				bg.Childs = append(bg.Childs, rect)
-			}
-		}
-	}
-
 	svg := &svg{
 		Xmlns:  "http://www.w3.org/2000/svg",
 		Width:  strconv.Itoa(pxl.Cols() * opts.Scale),
 		Height: strconv.Itoa(pxl.Rows() * opts.Scale),
-		Childs: []*svgGroup{bg, fg},
-	}
-
-	if _, err := w.Write([]byte(xml.Header)); err != nil {
-		return err
+		Childs: []*svgPath{bg, fg},
 	}
 	return xml.NewEncoder(w).Encode(svg)
+}
+
+func encodeSvgPathData(pxl Pxl, scale int) (string, string) {
+	bg := &strings.Builder{}
+	fg := &strings.Builder{}
+
+	for row := 0; row < pxl.Rows(); row++ {
+		for col := 0; col < pxl.Cols(); col++ {
+			d := fmt.Sprintf("M%[1]d,%[2]dh%[3]dv%[3]dh-%[3]dz", col*scale, row*scale, scale)
+
+			if pxl.Get(col, row) {
+				fg.WriteString(d)
+			} else {
+				bg.WriteString(d)
+			}
+		}
+	}
+	return bg.String(), fg.String()
 }
 
 func encodeSvgAnimation(attrName string, values []string, fps int) *svgAnimate {

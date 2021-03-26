@@ -38,7 +38,7 @@ func decodeURLPath(pth string) (Pxl, error) {
 		if err != nil {
 			return nil, err
 		}
-		pxl.SetRow(y, row)
+		pxl[y] = row
 	}
 	return pxl, nil
 }

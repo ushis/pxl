@@ -64,13 +64,14 @@ func encodeSvgPathData(pxl Pxl, scale int) (string, string) {
 
 	for row := 0; row < pxl.Rows(); row++ {
 		for col := 0; col < pxl.Cols(); col++ {
-			d := fmt.Sprintf("M%[1]d,%[2]dh%[3]dv%[3]dh-%[3]dz", col*scale, row*scale, scale)
+			var w io.Writer
 
 			if pxl.Get(col, row) {
-				fg.WriteString(d)
+				w = fg
 			} else {
-				bg.WriteString(d)
+				w = bg
 			}
+			fmt.Fprintf(w, "M%[1]d,%[2]dh%[3]dv%[3]dh-%[3]dz", col*scale, row*scale, scale)
 		}
 	}
 	return bg.String(), fg.String()

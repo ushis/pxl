@@ -2,6 +2,7 @@ package pxl
 
 import (
 	"image"
+	"image/color"
 	"image/png"
 	"io"
 )
@@ -11,10 +12,12 @@ func EncodePng(w io.Writer, pxl Pxl, opts *EncodingOptions) error {
 
 	for row := 0; row < pxl.Rows(); row++ {
 		for col := 0; col < pxl.Cols(); col++ {
-			clr := opts.Bg
+			var clr color.Color
 
 			if pxl.Get(col, row) {
 				clr = opts.Fg
+			} else {
+				clr = opts.Bg
 			}
 			for x := col * opts.Scale; x < (col+1)*opts.Scale; x++ {
 				for y := row * opts.Scale; y < (row+1)*opts.Scale; y++ {

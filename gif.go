@@ -31,10 +31,12 @@ func encodeGif(pxl Pxl, opts *EncodingOptions, invert bool) *image.Paletted {
 	}
 	for row := 0; row < pxl.Rows(); row++ {
 		for col := 0; col < pxl.Cols(); col++ {
-			clr := bg
+			var clr color.Color
 
 			if pxl.Get(col, row) {
 				clr = fg
+			} else {
+				clr = bg
 			}
 			for x := col * opts.Scale; x < (col+1)*opts.Scale; x++ {
 				for y := row * opts.Scale; y < (row+1)*opts.Scale; y++ {

@@ -10,17 +10,11 @@ import (
 )
 
 func EncodeJpeg(w io.Writer, pxl Pxl, opts *EncodingOptions) error {
-	return jpeg.Encode(w, encodeNRGBA(pxl, opts.Scale, opts.Bg, opts.Fg), nil)
+	return jpeg.Encode(w, encodeImage(pxl, opts.Scale, opts.Bg, opts.Fg), nil)
 }
 
 func EncodePng(w io.Writer, pxl Pxl, opts *EncodingOptions) error {
-	return png.Encode(w, encodeNRGBA(pxl, opts.Scale, opts.Bg, opts.Fg))
-}
-
-func encodeNRGBA(pxl Pxl, scale int, bg, fg color.Color) *image.NRGBA {
-	img := image.NewNRGBA(image.Rect(0, 0, pxl.Cols()*scale, pxl.Rows()*scale))
-	encodeImg(img, pxl, scale, bg, fg)
-	return img
+	return png.Encode(w, encodeImage(pxl, opts.Scale, opts.Bg, opts.Fg))
 }
 
 func EncodeGif(w io.Writer, pxl Pxl, opts *EncodingOptions) error {
@@ -28,47 +22,40 @@ func EncodeGif(w io.Writer, pxl Pxl, opts *EncodingOptions) error {
 
 	if opts.Fps > 0 {
 		g.Image = []*image.Paletted{
-			encodePaletted(pxl, opts.Scale, opts.Bg, opts.Fg),
-			encodePaletted(pxl, opts.Scale, opts.Fg, opts.Bg),
+			encodeImage(pxl, opts.Scale, opts.Bg, opts.Fg),
+			encodeImage(pxl, opts.Scale, opts.Fg, opts.Bg),
 		}
 		g.Delay = []int{
 			100 / opts.Fps,
 			100 / opts.Fps,
 		}
 	} else {
-		g.Image = []*image.Paletted{encodePaletted(pxl, opts.Scale, opts.Bg, opts.Fg)}
+		g.Image = []*image.Paletted{encodeImage(pxl, opts.Scale, opts.Bg, opts.Fg)}
 		g.Delay = []int{0}
 	}
 	return gif.EncodeAll(w, g)
 }
 
-func encodePaletted(pxl Pxl, scale int, bg, fg color.Color) *image.Paletted {
-	plt := color.Palette{bg, fg}
-	img := image.NewPaletted(image.Rect(0, 0, pxl.Cols()*scale, pxl.Rows()*scale), plt)
-	encodeImg(img, pxl, scale, bg, fg)
-	return img
-}
+func encodeImage(pxl Pxl, scale int, bg, fg color.Color) *image.Paletted {
+	r := image.Rect(0, 0, pxl.Cols()*scale, pxl.Rows()*scale)
+	p := color.Palette{bg, fg}
+	img := image.NewPaletted(r, p)
 
-type img interface {
-	image.Image
-	Set(x, y int, c color.Color)
-}
-
-func encodeImg(img img, pxl Pxl, scale int, bg, fg color.Color) {
 	for row := 0; row < pxl.Rows(); row++ {
 		for col := 0; col < pxl.Cols(); col++ {
-			var c color.Color
+			var c uint8
 
 			if pxl.Get(col, row) {
-				c = fg
+				c = 1
 			} else {
-				c = bg
+				c = 0
 			}
 			for x := col * scale; x < (col+1)*scale; x++ {
 				for y := row * scale; y < (row+1)*scale; y++ {
-					img.Set(x, y, c)
+					img.SetColorIndex(x, y, c)
 				}
 			}
 		}
 	}
+	return img
 }

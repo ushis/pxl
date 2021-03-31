@@ -66,6 +66,10 @@ func serve(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
 		w.Header().Add("Content-Type", "image/gif")
 		pxl.EncodeGif(w, p, opts)
+	case ".jpg":
+		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
+		w.Header().Add("Content-Type", "image/jpeg")
+		pxl.EncodeJpeg(w, p, opts)
 	case "", ".png":
 		w.Header().Add("Cache-Control", "public, max-age=86400, immutable")
 		w.Header().Add("Content-Type", "image/png")
